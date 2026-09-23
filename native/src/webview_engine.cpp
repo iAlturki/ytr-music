@@ -86,7 +86,30 @@ bool WebViewEngine::Initialize(HWND hWndContainer, std::function<void()> onIniti
     }
 
     if (!hLoader) {
-        MessageBoxW(hWndContainer, L"Could not load WebView2Loader.dll!", L"ytr-music Native", MB_ICONERROR);
+        // Fallback: extract embedded WebView2Loader from PE resource into user data folder
+        std::wstring cachedLoader = userDataFolder + L"\\WebView2Loader.dll";
+        hLoader = LoadLibraryW(cachedLoader.c_str());
+        if (!hLoader) {
+            HRSRC hRes = FindResourceW(GetModuleHandleW(NULL), MAKEINTRESOURCEW(201), MAKEINTRESOURCEW(10));
+            if (hRes) {
+                HGLOBAL hData = LoadResource(GetModuleHandleW(NULL), hRes);
+                DWORD size = SizeofResource(GetModuleHandleW(NULL), hRes);
+                void* pData = LockResource(hData);
+                if (pData && size > 0) {
+                    HANDLE hFile = CreateFileW(cachedLoader.c_str(), GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+                    if (hFile != INVALID_HANDLE_VALUE) {
+                        DWORD written = 0;
+                        WriteFile(hFile, pData, size, &written, NULL);
+                        CloseHandle(hFile);
+                        hLoader = LoadLibraryW(cachedLoader.c_str());
+                    }
+                }
+            }
+        }
+    }
+
+    if (!hLoader) {
+        MessageBoxW(hWndContainer, L"Could not load WebView2Loader.dll!", L"ytr-music", MB_ICONERROR);
         return false;
     }
 
