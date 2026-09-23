@@ -21,7 +21,7 @@ if %ERRORLEVEL% NEQ 0 (
 )
 
 echo [*] Compiling C++ source files...
-g++.exe -std=c++17 -O3 -s -mwindows ^
+g++.exe -std=c++17 -O3 -s -mwindows -static -static-libgcc -static-libstdc++ ^
     -Inative/sdk/include -Isdk/include ^
     src/main.cpp ^
     src/main_window.cpp ^

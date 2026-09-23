@@ -33,6 +33,9 @@ private:
     HWND m_hWnd = nullptr;
     bool m_isHovered = false;
     bool m_isVisible = false;
+    bool m_isDraggingVolume = false;
+    bool m_isDraggingSeek = false;
+    int m_lastNonZeroVolume = 50;
     int m_eqStep = 0;
 
     int m_currentWidth = 44;

@@ -196,6 +196,14 @@ LRESULT CALLBACK MiniplayerWindow::WndProc(HWND hWnd, UINT msg, WPARAM wParam, L
             self->HandleLButtonDown(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
             return 0;
         }
+        case WM_LBUTTONUP: {
+            if (self->m_isDraggingVolume || self->m_isDraggingSeek) {
+                self->m_isDraggingVolume = false;
+                self->m_isDraggingSeek = false;
+                ReleaseCapture();
+            }
+            return 0;
+        }
         case WM_RBUTTONUP: {
             POINT pt;
             GetCursorPos(&pt);
@@ -269,6 +277,25 @@ void MiniplayerWindow::HandleMouseMove(int x, int y) {
     if (!m_isHovered) {
         m_isHovered = true;
     }
+    if (m_isDraggingVolume) {
+        int vol = (int)(((float)(x - 36) / 48.0f) * 100.0f + 0.5f);
+        if (vol < 0) vol = 0;
+        if (vol > 100) vol = 100;
+        if (vol != g_currentSong.volume) {
+            g_currentSong.volume = vol;
+            App_SetVolume(vol);
+            Render();
+        }
+    } else if (m_isDraggingSeek) {
+        if (g_currentSong.duration > 0) {
+            double pct = (double)(x - 20) / 300.0;
+            if (pct < 0.0) pct = 0.0;
+            if (pct > 1.0) pct = 1.0;
+            g_currentSong.currentTime = pct * g_currentSong.duration;
+            App_SeekTo(g_currentSong.currentTime);
+            Render();
+        }
+    }
 }
 
 void MiniplayerWindow::HandleMouseLeave() {
@@ -287,6 +314,33 @@ void MiniplayerWindow::HandleLButtonDown(int x, int y) {
     }
 
     // In expanded view:
+    // 0. Volume Control: (Speaker at 14..32, Slider track at 33..86), Y: [155..189]
+    if (y >= 155 && y <= 189 && x >= 14 && x <= 95) {
+        if (x <= 32) {
+            // Clicked speaker icon -> toggle mute
+            if (g_currentSong.volume > 0) {
+                m_lastNonZeroVolume = g_currentSong.volume;
+                g_currentSong.volume = 0;
+            } else {
+                g_currentSong.volume = (m_lastNonZeroVolume > 0) ? m_lastNonZeroVolume : 50;
+            }
+            App_SetVolume(g_currentSong.volume);
+            Render();
+            return;
+        } else {
+            // Clicked volume slider track
+            int vol = (int)(((float)(x - 36) / 48.0f) * 100.0f + 0.5f);
+            if (vol < 0) vol = 0;
+            if (vol > 100) vol = 100;
+            g_currentSong.volume = vol;
+            App_SetVolume(vol);
+            Render();
+            m_isDraggingVolume = true;
+            SetCapture(m_hWnd);
+            return;
+        }
+    }
+
     // 1. Play/Pause (Resume) button: center at (170, 172)
     // Generous hit box: radius 32px or rect [135..205, 138..206]
     int centerX = 170;
@@ -334,7 +388,11 @@ void MiniplayerWindow::HandleLButtonDown(int x, int y) {
             double pct = (double)(x - 20) / 300.0;
             if (pct < 0.0) pct = 0.0;
             if (pct > 1.0) pct = 1.0;
-            App_SeekTo(pct * g_currentSong.duration);
+            g_currentSong.currentTime = pct * g_currentSong.duration;
+            App_SeekTo(g_currentSong.currentTime);
+            Render();
+            m_isDraggingSeek = true;
+            SetCapture(m_hWnd);
         }
         return;
     }
@@ -342,12 +400,12 @@ void MiniplayerWindow::HandleLButtonDown(int x, int y) {
 
 void MiniplayerWindow::HandleMouseWheel(short delta) {
     int currentVol = g_currentSong.volume;
-    int step = (delta > 0) ? 3 : -3;
+    int step = (delta > 0) ? 5 : -5;
     int newVol = currentVol + step;
     if (newVol < 0) newVol = 0;
     if (newVol > 100) newVol = 100;
-    App_SetVolume(newVol);
     g_currentSong.volume = newVol;
+    App_SetVolume(newVol);
     Render();
 }
 
@@ -612,13 +670,62 @@ void MiniplayerWindow::Render() {
             g.DrawString(L"\u2661", -1, &heartFont, heartRect, &sfCenter, &heartBrush);
         }
 
-        // Volume Indicator on bottom left (20, 172)
-        Font volFont(L"Segoe UI", 8.0f, FontStyleRegular);
-        RectF volRect(16.0f, ctrlY - 8.0f, 60.0f, 16.0f);
-        WCHAR volText[32];
-        swprintf_s(volText, L"Vol: %d%%", g_currentSong.volume);
-        SolidBrush volBrush(Color(180, 200, 210, 220));
-        g.DrawString(volText, -1, &volFont, volRect, &sfLeft, &volBrush);
+        // Volume Control on bottom left (ctrlY = 172.0f)
+        // 1. Crisp Vector Speaker Icon (X: 16 to 28, Y: ctrlY - 6 to ctrlY + 6)
+        Pen speakerPen(Color(200, 255, 255, 255), 1.2f);
+        SolidBrush speakerBrush(Color(200, 255, 255, 255));
+        // Back rectangle
+        g.FillRectangle(&speakerBrush, 16.0f, ctrlY - 3.0f, 3.0f, 6.0f);
+        // Cone polygon
+        PointF conePts[4] = {
+            { 19.0f, ctrlY - 3.0f },
+            { 24.0f, ctrlY - 6.5f },
+            { 24.0f, ctrlY + 6.5f },
+            { 19.0f, ctrlY + 3.0f }
+        };
+        g.FillPolygon(&speakerBrush, conePts, 4);
+
+        if (g_currentSong.volume > 0) {
+            // Sound wave arc
+            RectF waveRect(22.0f, ctrlY - 5.0f, 6.0f, 10.0f);
+            g.DrawArc(&speakerPen, waveRect, -50, 100);
+            if (g_currentSong.volume > 50) {
+                RectF waveRect2(24.5f, ctrlY - 7.0f, 7.0f, 14.0f);
+                g.DrawArc(&speakerPen, waveRect2, -50, 100);
+            }
+        } else {
+            // Muted "X"
+            Pen mutePen(Color(255, 255, 61, 0), 1.5f);
+            g.DrawLine(&mutePen, 26.0f, ctrlY - 4.0f, 30.0f, ctrlY + 4.0f);
+            g.DrawLine(&mutePen, 30.0f, ctrlY - 4.0f, 26.0f, ctrlY + 4.0f);
+        }
+
+        // 2. Volume Slider Track (X: 36 to 84, total 48px width)
+        float volTrackX1 = 36.0f;
+        float volTrackX2 = 84.0f;
+        float volTrackW = volTrackX2 - volTrackX1;
+        Pen volTrackBgPen(Color(70, 255, 255, 255), 3.0f);
+        g.DrawLine(&volTrackBgPen, volTrackX1, ctrlY, volTrackX2, ctrlY);
+
+        float volPct = (float)g_currentSong.volume / 100.0f;
+        if (volPct < 0.0f) volPct = 0.0f;
+        if (volPct > 1.0f) volPct = 1.0f;
+        float volFilledX = volTrackX1 + volPct * volTrackW;
+
+        Pen volTrackFilledPen(Color(255, 255, 61, 0), 3.0f);
+        g.DrawLine(&volTrackFilledPen, volTrackX1, ctrlY, volFilledX, ctrlY);
+
+        // Volume Slider Knob
+        SolidBrush volKnobBrush(Color(255, 255, 255, 255));
+        g.FillEllipse(&volKnobBrush, volFilledX - 4.0f, ctrlY - 4.0f, 8.0f, 8.0f);
+
+        // 3. Volume % Readout Text (X: 88 to 112)
+        Font volFont(L"Segoe UI", 7.5f, FontStyleRegular);
+        RectF volRect(88.0f, ctrlY - 7.0f, 28.0f, 14.0f);
+        WCHAR volText[16];
+        swprintf_s(volText, L"%d%%", g_currentSong.volume);
+        SolidBrush volTextBrush(Color(180, 200, 210, 220));
+        g.DrawString(volText, -1, &volFont, volRect, &sfLeft, &volTextBrush);
     }
 
     // Blend to screen via UpdateLayeredWindow

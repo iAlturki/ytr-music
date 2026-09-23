@@ -33,7 +33,7 @@ WebViewEngine::~WebViewEngine() {
     }
 }
 
-static void LogBridge(const std::wstring& text) {
+void LogBridge(const std::wstring& text) {
     WCHAR appDataPath[MAX_PATH];
     if (SUCCEEDED(SHGetFolderPathW(NULL, CSIDL_APPDATA, NULL, 0, appDataPath))) {
         std::wstring dirPath = std::wstring(appDataPath) + L"\\ytr-music-native";
@@ -606,6 +606,232 @@ void WebViewEngine::SetupInjectedBridge() {
                     box-shadow: 0 0 12px rgba(255, 61, 0, 0.55);
                     transform: translateY(-1px);
                 }
+
+                /* Dolby Equalizer Modal & Backdrop */
+                #ytr-eq-overlay {
+                    position: fixed !important;
+                    top: 0 !important;
+                    left: 0 !important;
+                    right: 0 !important;
+                    bottom: 0 !important;
+                    background: rgba(0, 0, 0, 0.70) !important;
+                    backdrop-filter: blur(8px) !important;
+                    z-index: 2147483646 !important;
+                    display: none;
+                    align-items: center !important;
+                    justify-content: center !important;
+                }
+
+                #ytr-eq-overlay.ytr-open {
+                    display: flex !important;
+                }
+
+                #ytr-eq-modal {
+                    width: 620px !important;
+                    max-width: 94vw !important;
+                    background: #11141c !important;
+                    border: 1px solid rgba(255, 255, 255, 0.16) !important;
+                    border-radius: 14px !important;
+                    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.85), 0 0 20px rgba(255, 61, 0, 0.15) !important;
+                    padding: 22px 24px !important;
+                    color: #ffffff !important;
+                    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+                    user-select: none !important;
+                    display: flex !important;
+                    flex-direction: column !important;
+                    gap: 16px !important;
+                    animation: ytrModalScale 0.18s cubic-bezier(0.16, 1, 0.3, 1) !important;
+                }
+
+                @keyframes ytrModalScale {
+                    from { opacity: 0; transform: scale(0.95); }
+                    to { opacity: 1; transform: scale(1); }
+                }
+
+                .ytr-eq-header {
+                    display: flex !important;
+                    align-items: center !important;
+                    justify-content: space-between !important;
+                }
+
+                .ytr-eq-title-group {
+                    display: flex !important;
+                    align-items: center !important;
+                    gap: 10px !important;
+                }
+
+                .ytr-eq-title {
+                    font-size: 15px !important;
+                    font-weight: 700 !important;
+                    color: #ffffff !important;
+                    display: flex !important;
+                    align-items: center !important;
+                    gap: 8px !important;
+                }
+
+                .ytr-eq-badge {
+                    font-size: 11px !important;
+                    font-weight: 600 !important;
+                    padding: 2px 8px !important;
+                    border-radius: 12px !important;
+                    background: rgba(255, 61, 0, 0.16) !important;
+                    color: #ff5722 !important;
+                    border: 1px solid rgba(255, 61, 0, 0.40) !important;
+                }
+
+                .ytr-eq-header-actions {
+                    display: flex !important;
+                    align-items: center !important;
+                    gap: 10px !important;
+                }
+
+                .ytr-eq-toggle-btn {
+                    font-size: 11px !important;
+                    font-weight: 700 !important;
+                    padding: 5px 12px !important;
+                    border-radius: 6px !important;
+                    border: 1px solid rgba(255, 255, 255, 0.15) !important;
+                    background: rgba(255, 255, 255, 0.08) !important;
+                    color: #d1d5db !important;
+                    cursor: pointer !important;
+                    transition: all 0.15s ease !important;
+                }
+
+                .ytr-eq-toggle-btn.ytr-active {
+                    background: rgba(74, 222, 128, 0.18) !important;
+                    border-color: rgba(74, 222, 128, 0.50) !important;
+                    color: #4ade80 !important;
+                }
+
+                .ytr-eq-close-btn {
+                    background: transparent !important;
+                    border: none !important;
+                    color: rgba(255, 255, 255, 0.55) !important;
+                    font-size: 20px !important;
+                    cursor: pointer !important;
+                    padding: 0 4px !important;
+                    line-height: 1 !important;
+                    transition: color 0.15s ease !important;
+                }
+
+                .ytr-eq-close-btn:hover {
+                    color: #ffffff !important;
+                }
+
+                .ytr-eq-presets-wrap {
+                    display: flex !important;
+                    flex-direction: column !important;
+                    gap: 6px !important;
+                }
+
+                .ytr-eq-presets-label {
+                    font-size: 10px !important;
+                    font-weight: 700 !important;
+                    color: rgba(255, 255, 255, 0.5) !important;
+                    text-transform: uppercase !important;
+                    letter-spacing: 0.5px !important;
+                }
+
+                .ytr-eq-presets-row {
+                    display: flex !important;
+                    flex-wrap: wrap !important;
+                    align-items: center !important;
+                    gap: 6px !important;
+                }
+
+                .ytr-eq-preset-chip {
+                    font-size: 11px !important;
+                    font-weight: 500 !important;
+                    padding: 4px 10px !important;
+                    border-radius: 6px !important;
+                    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+                    background: rgba(255, 255, 255, 0.05) !important;
+                    color: #9ca3af !important;
+                    cursor: pointer !important;
+                    transition: all 0.15s ease !important;
+                }
+
+                .ytr-eq-preset-chip:hover {
+                    background: rgba(255, 255, 255, 0.12) !important;
+                    color: #ffffff !important;
+                }
+
+                .ytr-eq-preset-chip.ytr-selected {
+                    background: linear-gradient(135deg, rgba(255, 61, 0, 0.35) 0%, rgba(255, 120, 50, 0.22) 100%) !important;
+                    border-color: #ff3d00 !important;
+                    color: #ffffff !important;
+                    font-weight: 600 !important;
+                    box-shadow: 0 0 10px rgba(255, 61, 0, 0.3) !important;
+                }
+
+                .ytr-eq-sliders-box {
+                    display: flex !important;
+                    justify-content: space-between !important;
+                    align-items: center !important;
+                    background: rgba(0, 0, 0, 0.40) !important;
+                    border: 1px solid rgba(255, 255, 255, 0.07) !important;
+                    border-radius: 10px !important;
+                    padding: 16px 12px !important;
+                    gap: 4px !important;
+                }
+
+                .ytr-eq-col {
+                    display: flex !important;
+                    flex-direction: column !important;
+                    align-items: center !important;
+                    flex: 1 !important;
+                    gap: 8px !important;
+                }
+
+                .ytr-eq-db {
+                    font-size: 10px !important;
+                    font-family: ui-monospace, SFMono-Regular, Menlo, monospace !important;
+                    color: #38bdf8 !important;
+                    min-height: 14px !important;
+                    text-align: center !important;
+                }
+
+                .ytr-eq-slider {
+                    -webkit-appearance: slider-vertical !important;
+                    writing-mode: bt-lr !important;
+                    width: 20px !important;
+                    height: 120px !important;
+                    cursor: pointer !important;
+                    background: transparent !important;
+                    accent-color: #ff3d00 !important;
+                    margin: 0 !important;
+                }
+
+                .ytr-eq-freq {
+                    font-size: 10px !important;
+                    font-weight: 600 !important;
+                    color: #9ca3af !important;
+                    text-align: center !important;
+                }
+
+                .ytr-eq-footer {
+                    display: flex !important;
+                    align-items: center !important;
+                    justify-content: space-between !important;
+                    font-size: 11px !important;
+                    color: rgba(255, 255, 255, 0.45) !important;
+                }
+
+                .ytr-eq-reset-btn {
+                    font-size: 11px !important;
+                    background: rgba(255, 255, 255, 0.06) !important;
+                    border: 1px solid rgba(255, 255, 255, 0.15) !important;
+                    color: #d1d5db !important;
+                    padding: 4px 11px !important;
+                    border-radius: 4px !important;
+                    cursor: pointer !important;
+                    transition: all 0.15s ease !important;
+                }
+
+                .ytr-eq-reset-btn:hover {
+                    background: rgba(255, 255, 255, 0.14) !important;
+                    color: #ffffff !important;
+                }
             `;
             target.appendChild(style);
         } catch (_) {}
@@ -787,225 +1013,35 @@ void WebViewEngine::SetupInjectedBridge() {
         } catch (_) {}
     }
 
-    // --- Studio-Grade Smooth Audio Fading & Volume Protection Engine ---
-    let smoothAudioEnabled = localStorage.getItem('ytr_smooth_audio') === 'true';
-    let isAudioFading = false;
-    let isActionBypassed = false;
-    let shouldFadeInNextTrack = false;
-    let userSliderVolume = 0.10;
-    let currentFadeRaf = null;
+    // --- Studio-Grade Web Audio Equalizer (10-Band Biquad Filters & Dolby Presets) ---
+    const EQ_FREQUENCIES = [32, 64, 125, 250, 500, 1000, 2000, 4000, 8000, 16000];
+    const EQ_FREQ_LABELS = ['32', '64', '125', '250', '500', '1k', '2k', '4k', '8k', '16k'];
+    const DOLBY_PRESETS = {
+        'Dolby Atmos': [4, 3, 1, 0, -1, 1, 2, 3, 4, 5],
+        'Dolby Music': [3, 2, 1, 0, 1, 2, 2, 2, 3, 3],
+        'Dolby Movie': [5, 4, 2, -1, 0, 1, 2, 3, 4, 3],
+        'Bass Boost':  [6, 5, 4, 2, 0, 0, 0, 1, 1, 1],
+        'Vocal':       [-2, -1, 0, 1, 3, 3, 2, 1, 0, 0],
+        'Rock':        [4, 3, 1, -1, -1, 1, 2, 3, 4, 4],
+        'Gaming':      [3, 2, 0, -2, 1, 2, 4, 3, 2, 1],
+        'Flat':        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    };
 
-    function getUserSliderVolume() {
-        try {
-            const player = document.querySelector('#movie_player');
-            if (player && typeof player.getVolume === 'function') {
-                const pv = player.getVolume();
-                if (typeof pv === 'number' && !isNaN(pv)) {
-                    if (pv <= 0) return 0;
-                    const video = document.querySelector('video');
-                    if (video && typeof video.volume === 'number' && !isAudioFading && video.volume > 0) {
-                        return video.volume;
-                    }
-                    return Math.pow(pv / 100.0, 2);
-                }
-            }
-            const video = document.querySelector('video');
-            if (video && typeof video.volume === 'number' && !isAudioFading && video.volume > 0) {
-                return video.volume;
-            }
-        } catch (_) {}
-        return userSliderVolume;
+    let eqMasterEnabled = localStorage.getItem('ytr_eq_enabled') !== 'false';
+    let currentPresetName = localStorage.getItem('ytr_eq_preset') || 'Dolby Atmos';
+    let currentGains = null;
+    try {
+        const saved = localStorage.getItem('ytr_eq_gains');
+        if (saved) currentGains = JSON.parse(saved);
+    } catch (_) {}
+    if (!Array.isArray(currentGains) || currentGains.length !== 10) {
+        currentGains = DOLBY_PRESETS[currentPresetName] ? [...DOLBY_PRESETS[currentPresetName]] : [...DOLBY_PRESETS['Dolby Atmos']];
     }
 
-    function updateSmoothAudioUI() {
-        try {
-            // 1. Update Playback dropdown menu item
-            const item = document.getElementById('ytr-menu-fade');
-            if (item) {
-                const targetText = smoothAudioEnabled ? '\u2713 Smooth Audio (Fade): ON' : '\u25CB Smooth Audio (Fade): OFF';
-                if (item.textContent !== targetText) {
-                    item.textContent = targetText;
-                    item.style.color = smoothAudioEnabled ? '#4ade80' : '#9ca3af';
-                    item.style.fontWeight = smoothAudioEnabled ? '600' : 'normal';
-                    item.style.cursor = 'pointer';
-                }
-            }
-
-            // 2. Update TopBar Dedicated Quick-Toggle Pill
-            const pill = document.getElementById('ytr-btn-smooth');
-            const pillText = document.getElementById('ytr-btn-smooth-text');
-            if (pill) {
-                const targetBg = smoothAudioEnabled ? 'rgba(74, 222, 128, 0.16)' : 'rgba(255, 255, 255, 0.06)';
-                if (pill.style.background !== targetBg) {
-                    pill.style.background = targetBg;
-                    pill.style.borderColor = smoothAudioEnabled ? 'rgba(74, 222, 128, 0.45)' : 'rgba(255, 255, 255, 0.1)';
-                    pill.style.color = smoothAudioEnabled ? '#4ade80' : '#d1d1d1';
-                    pill.title = smoothAudioEnabled
-                        ? 'Smooth Audio Fading is ACTIVE: 250ms studio fade on Pause, Resume, and Track Skips (Click to Toggle OFF)'
-                        : 'Smooth Audio Fading is OFF: Instant standard playback transitions (Click to Toggle ON)';
-                }
-            }
-            if (pillText) {
-                const targetPillText = smoothAudioEnabled ? 'Smooth Audio: ON' : 'Smooth Audio: OFF';
-                if (pillText.textContent !== targetPillText) {
-                    pillText.textContent = targetPillText;
-                }
-            }
-        } catch (_) {}
-    }
-
-    function smoothFade(video, fromVol, toVol, durationMs, onDone) {
-        if (!video) { if (onDone) onDone(); return; }
-        if (currentFadeRaf) {
-            cancelAnimationFrame(currentFadeRaf);
-            currentFadeRaf = null;
-        }
-        isAudioFading = true;
-        const start = performance.now();
-        function step(now) {
-            const elapsed = now - start;
-            const progress = Math.min(1.0, elapsed / durationMs);
-            const cosVal = Math.cos((progress * Math.PI) / 2);
-            const sinVal = Math.sin((progress * Math.PI) / 2);
-            const cur = (fromVol * cosVal) + (toVol * sinVal);
-            video.volume = Math.max(0, Math.min(1, cur));
-            if (progress < 1.0) {
-                currentFadeRaf = requestAnimationFrame(step);
-            } else {
-                video.volume = Math.max(0, Math.min(1, toVol));
-                isAudioFading = false;
-                currentFadeRaf = null;
-                if (onDone) onDone();
-            }
-        }
-        currentFadeRaf = requestAnimationFrame(step);
-    }
-
-    function smoothTogglePlayPause() {
-        const video = document.querySelector('video');
-        const playBtn = document.querySelector('#play-pause-button, .play-pause-button');
-        const player = document.querySelector('#movie_player');
-
-        function triggerNativePlayPause() {
-            isActionBypassed = true;
-            try {
-                if (playBtn) {
-                    playBtn.click();
-                } else if (player && typeof player.getPlayerState === 'function') {
-                    if (player.getPlayerState() === 1) player.pauseVideo();
-                    else player.playVideo();
-                } else if (video) {
-                    video.paused ? video.play() : video.pause();
-                }
-            } finally {
-                setTimeout(() => { isActionBypassed = false; }, 300);
-            }
-        }
-
-        if (!video) {
-            triggerNativePlayPause();
-            return;
-        }
-
-        if (!smoothAudioEnabled) {
-            triggerNativePlayPause();
-            return;
-        }
-
-        userSliderVolume = getUserSliderVolume();
-
-        if (video.paused) {
-            // Smooth Resume: fade from 0 up to EXACTLY user's chosen volume setting
-            const target = userSliderVolume;
-            video.volume = 0;
-            triggerNativePlayPause();
-            smoothFade(video, 0, target, 250);
-        } else {
-            // Smooth Pause: fade from current volume down to 0, then restore user's volume
-            const fromVol = video.volume > 0 ? video.volume : userSliderVolume;
-            smoothFade(video, fromVol, 0, 200, () => {
-                triggerNativePlayPause();
-                setTimeout(() => {
-                    if (video.paused) {
-                        video.volume = fromVol;
-                    }
-                }, 50);
-            });
-        }
-    }
-
-    function smoothNextTrack() {
-        const video = document.querySelector('video');
-        const nextBtn = document.querySelector('.next-button.ytmusic-player-bar, #next-button, button.next-button');
-        const player = document.querySelector('#movie_player');
-
-        function triggerNativeNext() {
-            isActionBypassed = true;
-            try {
-                if (player && typeof player.nextVideo === 'function') {
-                    player.nextVideo();
-                } else if (nextBtn) {
-                    nextBtn.click();
-                }
-            } finally {
-                setTimeout(() => { isActionBypassed = false; }, 300);
-            }
-        }
-
-        if (!smoothAudioEnabled || !video || video.paused) {
-            triggerNativeNext();
-            return;
-        }
-
-        userSliderVolume = getUserSliderVolume();
-        shouldFadeInNextTrack = true;
-        smoothFade(video, userSliderVolume, 0, 200, () => {
-            triggerNativeNext();
-        });
-    }
-
-    function smoothPrevTrack() {
-        const video = document.querySelector('video');
-        const prevBtn = document.querySelector('.previous-button.ytmusic-player-bar, #previous-button, button.previous-button');
-        const player = document.querySelector('#movie_player');
-
-        function triggerNativePrev() {
-            isActionBypassed = true;
-            try {
-                if (player && typeof player.previousVideo === 'function') {
-                    player.previousVideo();
-                } else if (prevBtn) {
-                    prevBtn.click();
-                }
-            } finally {
-                setTimeout(() => { isActionBypassed = false; }, 300);
-            }
-        }
-
-        if (!smoothAudioEnabled || !video || video.paused) {
-            triggerNativePrev();
-            return;
-        }
-
-        userSliderVolume = getUserSliderVolume();
-        shouldFadeInNextTrack = true;
-        smoothFade(video, userSliderVolume, 0, 200, () => {
-            triggerNativePrev();
-        });
-    }
-
-    window.__ytr_smoothToggle = smoothTogglePlayPause;
-    window.__ytr_smoothNext = smoothNextTrack;
-    window.__ytr_smoothPrev = smoothPrevTrack;
-
-    // --- Studio-Grade Audio Consistency Engine (Dynamic Range Compression & Loudness Normalization) ---
-    let audioConsistencyEnabled = localStorage.getItem('ytr_audio_consistency') !== 'false';
     let audioCtx = null;
     let audioSourceNode = null;
-    let compressorNode = null;
-    let makeupGainNode = null;
-    let compGainNode = null;
-    let dryGainNode = null;
+    let eqFilterNodes = [];
+    let fadeGainNode = null;
     let lastConnectedVideo = null;
 
     function initAudioGraph(video) {
@@ -1029,40 +1065,40 @@ void WebViewEngine::SetupInjectedBridge() {
                 audioSourceNode = audioCtx.createMediaElementSource(video);
                 lastConnectedVideo = video;
 
-                // Compressor branch: calibrated as a gentle peak limiter & leveling shield (NEVER BOOSTS VOLUME)
-                compressorNode = audioCtx.createDynamicsCompressor();
-                compressorNode.threshold.value = -24; // dB: catches harsh loud peaks without compressing quiet tracks
-                compressorNode.knee.value = 24;       // dB: gentle transparent musical curve
-                compressorNode.ratio.value = 5;       // 5:1 ratio: gentle leveling, zero distortion
-                compressorNode.attack.value = 0.003;  // 3ms: prevents sudden loud blasts
-                compressorNode.release.value = 0.25;  // 250ms: natural decay
+                // Build 10-Band Biquad Filter chain
+                eqFilterNodes = [];
+                for (let i = 0; i < EQ_FREQUENCIES.length; i++) {
+                    const freq = EQ_FREQUENCIES[i];
+                    const filter = audioCtx.createBiquadFilter();
+                    if (i === 0) {
+                        filter.type = 'lowshelf';
+                    } else if (i === EQ_FREQUENCIES.length - 1) {
+                        filter.type = 'highshelf';
+                    } else {
+                        filter.type = 'peaking';
+                        filter.Q.value = 1.4;
+                    }
+                    filter.frequency.value = freq;
+                    filter.gain.value = eqMasterEnabled ? currentGains[i] : 0.0;
+                    eqFilterNodes.push(filter);
+                }
 
-                // Unity gain node: STRICT 1.0x (ZERO VOLUME BOOST, NEVER MAKES SOUND LOUDER)
-                makeupGainNode = audioCtx.createGain();
-                makeupGainNode.gain.value = 1.0;
+                // Dedicated GainNode for Smooth Audio Fading (never touches video.volume)
+                fadeGainNode = audioCtx.createGain();
+                fadeGainNode.gain.value = 1.0;
 
-                // Wet (compressed) gain
-                compGainNode = audioCtx.createGain();
-                compGainNode.gain.value = audioConsistencyEnabled ? 1.0 : 0.0;
-
-                // Dry (bypass) gain
-                dryGainNode = audioCtx.createGain();
-                dryGainNode.gain.value = audioConsistencyEnabled ? 0.0 : 1.0;
-
-                // Connect compressor path: source -> compressor -> makeup -> compGain -> destination
-                audioSourceNode.connect(compressorNode);
-                compressorNode.connect(makeupGainNode);
-                makeupGainNode.connect(compGainNode);
-                compGainNode.connect(audioCtx.destination);
-
-                // Connect bypass dry path: source -> dryGain -> destination
-                audioSourceNode.connect(dryGainNode);
-                dryGainNode.connect(audioCtx.destination);
+                // Chain: Source -> Filter[0] -> ... -> Filter[9] -> FadeGain -> Destination
+                let prev = audioSourceNode;
+                for (let i = 0; i < eqFilterNodes.length; i++) {
+                    prev.connect(eqFilterNodes[i]);
+                    prev = eqFilterNodes[i];
+                }
+                prev.connect(fadeGainNode);
+                fadeGainNode.connect(audioCtx.destination);
 
                 window.__ytr_audioCtx = audioCtx;
-                window.__ytr_comp = compressorNode;
-                window.__ytr_compGain = compGainNode;
-                window.__ytr_dryGain = dryGainNode;
+                window.__ytr_eqFilters = eqFilterNodes;
+                window.__ytr_fadeGain = fadeGainNode;
             }
 
             if (audioCtx.state === 'suspended') {
@@ -1073,57 +1109,373 @@ void WebViewEngine::SetupInjectedBridge() {
         }
     }
 
-    function setAudioConsistency(enabled) {
-        audioConsistencyEnabled = enabled;
-        localStorage.setItem('ytr_audio_consistency', enabled ? 'true' : 'false');
-        if (audioCtx && compGainNode && dryGainNode) {
-            try {
-                const now = audioCtx.currentTime;
-                compGainNode.gain.cancelScheduledValues(now);
-                dryGainNode.gain.cancelScheduledValues(now);
-                compGainNode.gain.setValueAtTime(compGainNode.gain.value, now);
-                dryGainNode.gain.setValueAtTime(dryGainNode.gain.value, now);
-                if (enabled) {
-                    compGainNode.gain.linearRampToValueAtTime(1.0, now + 0.05);
-                    dryGainNode.gain.linearRampToValueAtTime(0.0, now + 0.05);
-                } else {
-                    compGainNode.gain.linearRampToValueAtTime(0.0, now + 0.05);
-                    dryGainNode.gain.linearRampToValueAtTime(1.0, now + 0.05);
+    function applyEqGains(gains, presetName) {
+        currentGains = [...gains];
+        if (presetName) currentPresetName = presetName;
+        localStorage.setItem('ytr_eq_gains', JSON.stringify(currentGains));
+        if (presetName) localStorage.setItem('ytr_eq_preset', currentPresetName);
+
+        if (audioCtx && eqFilterNodes.length === 10) {
+            const now = audioCtx.currentTime;
+            for (let i = 0; i < 10; i++) {
+                const target = eqMasterEnabled ? currentGains[i] : 0.0;
+                try {
+                    eqFilterNodes[i].gain.cancelScheduledValues(now);
+                    eqFilterNodes[i].gain.setValueAtTime(eqFilterNodes[i].gain.value, now);
+                    eqFilterNodes[i].gain.linearRampToValueAtTime(target, now + 0.05);
+                } catch (_) {
+                    eqFilterNodes[i].gain.value = target;
                 }
-            } catch (_) {
-                compGainNode.gain.value = enabled ? 1.0 : 0.0;
-                dryGainNode.gain.value = enabled ? 0.0 : 1.0;
             }
         }
-        updateAudioConsistencyUI();
-        if (window.chrome && window.chrome.webview) {
-            window.chrome.webview.postMessage(JSON.stringify({
-                type: 'log',
-                message: 'Audio Consistency toggled: ' + (enabled ? 'ON' : 'OFF')
-            }));
+        updateEqualizerModalUI();
+        updateEqButtonUI();
+    }
+
+    function setEqMasterEnabled(enabled) {
+        eqMasterEnabled = enabled;
+        localStorage.setItem('ytr_eq_enabled', enabled ? 'true' : 'false');
+        applyEqGains(currentGains, currentPresetName);
+        updateEqualizerModalUI();
+        updateEqButtonUI();
+    }
+
+    function updateEqButtonUI() {
+        const btn = document.getElementById('ytr-btn-eq');
+        const text = document.getElementById('ytr-btn-eq-text');
+        if (!btn) return;
+        const targetBg = eqMasterEnabled ? 'rgba(255, 61, 0, 0.18)' : 'rgba(255, 255, 255, 0.06)';
+        btn.style.background = targetBg;
+        btn.style.borderColor = eqMasterEnabled ? 'rgba(255, 61, 0, 0.45)' : 'rgba(255, 255, 255, 0.1)';
+        btn.style.color = eqMasterEnabled ? '#ff5722' : '#d1d1d1';
+        if (text) {
+            text.textContent = eqMasterEnabled ? `EQ (${currentPresetName})` : 'EQ: OFF';
         }
     }
 
-    function toggleAudioConsistency() {
-        setAudioConsistency(!audioConsistencyEnabled);
+    function updateEqualizerModalUI() {
+        const badge = document.getElementById('ytr-eq-preset-badge');
+        if (badge) badge.textContent = currentPresetName;
+
+        const toggleBtn = document.getElementById('ytr-eq-master-toggle');
+        if (toggleBtn) {
+            toggleBtn.textContent = eqMasterEnabled ? '\u2713 EQ: ON' : '\u25CB EQ: OFF';
+            if (eqMasterEnabled) toggleBtn.classList.add('ytr-active');
+            else toggleBtn.classList.remove('ytr-active');
+        }
+
+        const chips = document.querySelectorAll('.ytr-eq-preset-chip');
+        chips.forEach(chip => {
+            const pName = chip.getAttribute('data-preset');
+            if (pName === currentPresetName) chip.classList.add('ytr-selected');
+            else chip.classList.remove('ytr-selected');
+        });
+
+        for (let i = 0; i < 10; i++) {
+            const slider = document.getElementById(`ytr-eq-slider-${i}`);
+            const dbText = document.getElementById(`ytr-eq-db-${i}`);
+            const val = currentGains[i];
+            if (slider && parseFloat(slider.value) !== val) {
+                slider.value = String(val);
+            }
+            if (dbText) {
+                dbText.textContent = (val > 0 ? '+' : '') + val + ' dB';
+            }
+        }
     }
 
-    function updateAudioConsistencyUI() {
+    function toggleEqualizerModal() {
+        let overlay = document.getElementById('ytr-eq-overlay');
+        if (!overlay) {
+            overlay = buildEqualizerModal();
+        }
+        if (overlay) {
+            const isOpen = overlay.classList.toggle('ytr-open');
+            if (isOpen) {
+                updateEqualizerModalUI();
+            }
+        }
+    }
+
+    function buildEqualizerModal() {
+        let overlay = document.getElementById('ytr-eq-overlay');
+        if (overlay) return overlay;
+
+        overlay = createEl('div', { id: 'ytr-eq-overlay' });
+        const modal = createEl('div', { id: 'ytr-eq-modal' });
+
+        // 1. Header
+        const header = createEl('div', { className: 'ytr-eq-header' });
+        const titleGrp = createEl('div', { className: 'ytr-eq-title-group' });
+        const titleSvg = createSvg(16, 16, '0 0 24 24', [
+            { tag: 'path', attrs: { d: 'M10 20h4V4h-4v16zm-6 0h4v-8H4v8zM16 9v11h4V9h-4z', fill: '#ff3d00' } }
+        ]);
+        const titleSpan = createEl('span', { className: 'ytr-eq-title' });
+        titleSpan.appendChild(titleSvg);
+        titleSpan.appendChild(document.createTextNode('Dolby Audio Equalizer'));
+        const badge = createEl('span', { id: 'ytr-eq-preset-badge', className: 'ytr-eq-badge' }, currentPresetName);
+        titleGrp.appendChild(titleSpan);
+        titleGrp.appendChild(badge);
+
+        const actions = createEl('div', { className: 'ytr-eq-header-actions' });
+        const toggleBtn = createEl('button', {
+            id: 'ytr-eq-master-toggle',
+            className: 'ytr-eq-toggle-btn' + (eqMasterEnabled ? ' ytr-active' : ''),
+            title: 'Master Equalizer Toggle'
+        }, eqMasterEnabled ? '\u2713 EQ: ON' : '\u25CB EQ: OFF');
+        toggleBtn.addEventListener('click', () => {
+            setEqMasterEnabled(!eqMasterEnabled);
+        });
+
+        const closeBtn = createEl('button', { className: 'ytr-eq-close-btn', title: 'Close (Esc)' }, '\u2715');
+        closeBtn.addEventListener('click', () => overlay.classList.remove('ytr-open'));
+
+        actions.appendChild(toggleBtn);
+        actions.appendChild(closeBtn);
+
+        header.appendChild(titleGrp);
+        header.appendChild(actions);
+
+        // 2. Presets Row
+        const presetsWrap = createEl('div', { className: 'ytr-eq-presets-wrap' });
+        const presetsLabel = createEl('div', { className: 'ytr-eq-presets-label' }, 'Dolby Studio Presets');
+        const presetsRow = createEl('div', { className: 'ytr-eq-presets-row' });
+
+        for (const pName in DOLBY_PRESETS) {
+            const chip = createEl('button', {
+                className: 'ytr-eq-preset-chip' + (pName === currentPresetName ? ' ytr-selected' : ''),
+                'data-preset': pName
+            }, pName);
+            chip.addEventListener('click', () => {
+                applyEqGains(DOLBY_PRESETS[pName], pName);
+            });
+            presetsRow.appendChild(chip);
+        }
+        presetsWrap.appendChild(presetsLabel);
+        presetsWrap.appendChild(presetsRow);
+
+        // 3. 10 Vertical Sliders Box
+        const slidersBox = createEl('div', { className: 'ytr-eq-sliders-box' });
+        for (let i = 0; i < 10; i++) {
+            const col = createEl('div', { className: 'ytr-eq-col' });
+            const val = currentGains[i];
+            const dbText = createEl('span', { id: `ytr-eq-db-${i}`, className: 'ytr-eq-db' }, (val > 0 ? '+' : '') + val + ' dB');
+            const slider = createEl('input', {
+                id: `ytr-eq-slider-${i}`,
+                type: 'range',
+                min: '-12',
+                max: '12',
+                step: '0.5',
+                value: String(val),
+                orient: 'vertical',
+                className: 'ytr-eq-slider',
+                title: `${EQ_FREQ_LABELS[i]}Hz (${val} dB)`
+            });
+            slider.addEventListener('input', (e) => {
+                const newGains = [...currentGains];
+                newGains[i] = parseFloat(e.target.value);
+                applyEqGains(newGains, 'Custom');
+            });
+            const freqText = createEl('span', { className: 'ytr-eq-freq' }, EQ_FREQ_LABELS[i]);
+
+            col.appendChild(dbText);
+            col.appendChild(slider);
+            col.appendChild(freqText);
+            slidersBox.appendChild(col);
+        }
+
+        // 4. Footer
+        const footer = createEl('div', { className: 'ytr-eq-footer' });
+        const hint = createEl('span', {}, '10-Band Biquad Studio Equalizer \u2022 32Hz - 16kHz \u2022 64-bit Audio DSP');
+        const resetBtn = createEl('button', { className: 'ytr-eq-reset-btn' }, 'Reset to Flat (0 dB)');
+        resetBtn.addEventListener('click', () => {
+            applyEqGains(DOLBY_PRESETS['Flat'], 'Flat');
+        });
+        footer.appendChild(hint);
+        footer.appendChild(resetBtn);
+
+        modal.appendChild(header);
+        modal.appendChild(presetsWrap);
+        modal.appendChild(slidersBox);
+        modal.appendChild(footer);
+
+        overlay.appendChild(modal);
+
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) overlay.classList.remove('ytr-open');
+        });
+
+        document.body.appendChild(overlay);
+        return overlay;
+    }
+
+    // --- Studio-Grade Smooth Audio Fading Engine ---
+    let smoothAudioEnabled = localStorage.getItem('ytr_smooth_audio') === 'true';
+    let isActionBypassed = false;
+    let shouldFadeInNextTrack = false;
+
+    function updateSmoothAudioUI() {
         try {
-            const item = document.getElementById('ytr-menu-consistency');
+            const item = document.getElementById('ytr-menu-fade');
             if (item) {
-                const targetText = audioConsistencyEnabled ? '\u2713 Audio Consistency (Normalize): ON' : '\u25CB Audio Consistency (Normalize): OFF';
+                const targetText = smoothAudioEnabled ? '\u2713 Smooth Audio (Fade): ON' : '\u25CB Smooth Audio (Fade): OFF';
                 if (item.textContent !== targetText) {
                     item.textContent = targetText;
-                    item.style.color = audioConsistencyEnabled ? '#38bdf8' : '#9ca3af';
-                    item.style.fontWeight = audioConsistencyEnabled ? '600' : 'normal';
+                    item.style.color = smoothAudioEnabled ? '#4ade80' : '#9ca3af';
+                    item.style.fontWeight = smoothAudioEnabled ? '600' : 'normal';
+                }
+            }
+
+            const pill = document.getElementById('ytr-btn-smooth');
+            const pillText = document.getElementById('ytr-btn-smooth-text');
+            if (pill) {
+                const targetBg = smoothAudioEnabled ? 'rgba(74, 222, 128, 0.16)' : 'rgba(255, 255, 255, 0.06)';
+                if (pill.style.background !== targetBg) {
+                    pill.style.background = targetBg;
+                    pill.style.borderColor = smoothAudioEnabled ? 'rgba(74, 222, 128, 0.45)' : 'rgba(255, 255, 255, 0.1)';
+                    pill.style.color = smoothAudioEnabled ? '#4ade80' : '#d1d1d1';
+                }
+            }
+            if (pillText) {
+                const targetPillText = smoothAudioEnabled ? 'Smooth Audio: ON' : 'Smooth Audio: OFF';
+                if (pillText.textContent !== targetPillText) {
+                    pillText.textContent = targetPillText;
                 }
             }
         } catch (_) {}
     }
 
-    window.__ytr_toggleConsistency = toggleAudioConsistency;
-    window.__ytr_setConsistency = setAudioConsistency;
+    function smoothTogglePlayPause() {
+        const video = document.querySelector('video');
+        const playBtn = document.querySelector('#play-pause-button, .play-pause-button');
+        const player = document.querySelector('#movie_player');
+
+        function triggerNativePlayPause() {
+            isActionBypassed = true;
+            try {
+                if (playBtn) {
+                    playBtn.click();
+                } else if (player && typeof player.getPlayerState === 'function') {
+                    if (player.getPlayerState() === 1) player.pauseVideo();
+                    else player.playVideo();
+                } else if (video) {
+                    video.paused ? video.play() : video.pause();
+                }
+            } finally {
+                setTimeout(() => { isActionBypassed = false; }, 300);
+            }
+        }
+
+        if (!video || !smoothAudioEnabled || !audioCtx || !fadeGainNode) {
+            triggerNativePlayPause();
+            return;
+        }
+
+        if (audioCtx.state === 'suspended') {
+            audioCtx.resume().catch(() => {});
+        }
+
+        if (video.paused) {
+            // Smooth Resume: set gain to 0, start playing, ramp gain up to 1.0 in 220ms
+            const now = audioCtx.currentTime;
+            fadeGainNode.gain.cancelScheduledValues(now);
+            fadeGainNode.gain.setValueAtTime(0.001, now);
+            triggerNativePlayPause();
+            fadeGainNode.gain.linearRampToValueAtTime(1.0, now + 0.22);
+        } else {
+            // Smooth Pause: ramp gain down from 1.0 to 0.001 in 180ms, then pause and reset gain to 1.0
+            const now = audioCtx.currentTime;
+            fadeGainNode.gain.cancelScheduledValues(now);
+            fadeGainNode.gain.setValueAtTime(fadeGainNode.gain.value, now);
+            fadeGainNode.gain.linearRampToValueAtTime(0.001, now + 0.18);
+            setTimeout(() => {
+                triggerNativePlayPause();
+                if (audioCtx && fadeGainNode) {
+                    const t = audioCtx.currentTime;
+                    fadeGainNode.gain.setValueAtTime(1.0, t);
+                }
+            }, 190);
+        }
+    }
+
+    function smoothNextTrack() {
+        const video = document.querySelector('video');
+        const nextBtn = document.querySelector('.next-button.ytmusic-player-bar, #next-button, button.next-button');
+        const player = document.querySelector('#movie_player');
+
+        function triggerNativeNext() {
+            isActionBypassed = true;
+            try {
+                if (player && typeof player.nextVideo === 'function') {
+                    player.nextVideo();
+                } else if (nextBtn) {
+                    nextBtn.click();
+                }
+            } finally {
+                setTimeout(() => { isActionBypassed = false; }, 300);
+            }
+        }
+
+        if (!smoothAudioEnabled || !video || video.paused || !audioCtx || !fadeGainNode) {
+            triggerNativeNext();
+            return;
+        }
+
+        shouldFadeInNextTrack = true;
+        const now = audioCtx.currentTime;
+        fadeGainNode.gain.cancelScheduledValues(now);
+        fadeGainNode.gain.setValueAtTime(fadeGainNode.gain.value, now);
+        fadeGainNode.gain.linearRampToValueAtTime(0.001, now + 0.16);
+        setTimeout(() => {
+            triggerNativeNext();
+            if (audioCtx && fadeGainNode) {
+                fadeGainNode.gain.setValueAtTime(1.0, audioCtx.currentTime);
+            }
+        }, 170);
+    }
+
+    function smoothPrevTrack() {
+        const video = document.querySelector('video');
+        const prevBtn = document.querySelector('.previous-button.ytmusic-player-bar, #previous-button, button.previous-button');
+        const player = document.querySelector('#movie_player');
+
+        function triggerNativePrev() {
+            isActionBypassed = true;
+            try {
+                if (player && typeof player.previousVideo === 'function') {
+                    player.previousVideo();
+                } else if (prevBtn) {
+                    prevBtn.click();
+                }
+            } finally {
+                setTimeout(() => { isActionBypassed = false; }, 300);
+            }
+        }
+
+        if (!smoothAudioEnabled || !video || video.paused || !audioCtx || !fadeGainNode) {
+            triggerNativePrev();
+            return;
+        }
+
+        shouldFadeInNextTrack = true;
+        const now = audioCtx.currentTime;
+        fadeGainNode.gain.cancelScheduledValues(now);
+        fadeGainNode.gain.setValueAtTime(fadeGainNode.gain.value, now);
+        fadeGainNode.gain.linearRampToValueAtTime(0.001, now + 0.16);
+        setTimeout(() => {
+            triggerNativePrev();
+            if (audioCtx && fadeGainNode) {
+                fadeGainNode.gain.setValueAtTime(1.0, audioCtx.currentTime);
+            }
+        }, 170);
+    }
+
+    window.__ytr_smoothToggle = smoothTogglePlayPause;
+    window.__ytr_smoothNext = smoothNextTrack;
+    window.__ytr_smoothPrev = smoothPrevTrack;
+    window.__ytr_toggleEqualizer = toggleEqualizerModal;
+    window.__ytr_setEqMaster = setEqMasterEnabled;
+    window.__ytr_applyPreset = (p) => applyEqGains(DOLBY_PRESETS[p] || DOLBY_PRESETS['Flat'], p);
 
     function installTopBarUI() {
         try {
@@ -1185,11 +1537,25 @@ void WebViewEngine::SetupInjectedBridge() {
             btnSmooth.appendChild(smoothSvg);
             btnSmooth.appendChild(smoothSpan);
 
+            const btnEq = createEl('button', {
+                className: 'ytr-nav-btn',
+                id: 'ytr-btn-eq',
+                title: 'Dolby Audio Equalizer & Studio Presets (Click to Open)',
+                style: 'width: auto; padding: 0 8px; gap: 5px; display: inline-flex; align-items: center; border-radius: 4px; transition: all 0.2s ease;'
+            });
+            const eqSvg = createSvg(12, 12, '0 0 24 24', [
+                { tag: 'path', attrs: { d: 'M10 20h4V4h-4v16zm-6 0h4v-8H4v8zM16 9v11h4V9h-4z', fill: 'currentColor' } }
+            ]);
+            const eqSpan = createEl('span', { id: 'ytr-btn-eq-text', style: 'font-size: 10px; font-weight: 600;' }, 'EQ');
+            btnEq.appendChild(eqSvg);
+            btnEq.appendChild(eqSpan);
+
             navBtns.appendChild(btnBack);
             navBtns.appendChild(btnForward);
             navBtns.appendChild(btnReload);
             navBtns.appendChild(btnSearch);
             navBtns.appendChild(btnSmooth);
+            navBtns.appendChild(btnEq);
 
             const menuItems = createEl('div', { className: 'ytr-menu-items' });
             function makeDropdown(label, items) {
@@ -1226,7 +1592,8 @@ void WebViewEngine::SetupInjectedBridge() {
                 { id: 'ytr-menu-prev', text: 'Previous Track (P)' },
                 { id: 'ytr-menu-like', text: 'Like Track (L)' },
                 'divider',
-                { id: 'ytr-menu-fade', text: 'Smooth Audio (Fade): OFF' }
+                { id: 'ytr-menu-fade', text: 'Smooth Audio (Fade): OFF' },
+                { id: 'ytr-menu-eq', text: 'Dolby Equalizer (EQ)...' }
             ]);
 
             menuItems.appendChild(fileDd);
@@ -1334,8 +1701,12 @@ void WebViewEngine::SetupInjectedBridge() {
 
             bar.querySelector('#ytr-btn-smooth')?.addEventListener('click', toggleSmoothAudio);
             bar.querySelector('#ytr-menu-fade')?.addEventListener('click', toggleSmoothAudio);
+            bar.querySelector('#ytr-btn-eq')?.addEventListener('click', toggleEqualizerModal);
+            bar.querySelector('#ytr-menu-eq')?.addEventListener('click', toggleEqualizerModal);
 
             updateSmoothAudioUI();
+            updateEqButtonUI();
+            buildEqualizerModal();
 
             document.body.prepend(bar);
 
@@ -1378,7 +1749,17 @@ void WebViewEngine::SetupInjectedBridge() {
             const paused = video ? video.paused : true;
             const curTime = video ? Math.floor(video.currentTime) : 0;
             const duration = video && isFinite(video.duration) ? Math.floor(video.duration) : 0;
-            const volume = video ? Math.round(video.volume * 100) : 100;
+
+            let volume = 100;
+            try {
+                const player = document.querySelector('#movie_player');
+                if (player && typeof player.getVolume === 'function') {
+                    const pv = player.getVolume();
+                    if (typeof pv === 'number' && !isNaN(pv)) volume = Math.round(pv);
+                } else if (video && typeof video.volume === 'number') {
+                    volume = Math.round(Math.sqrt(video.volume) * 100);
+                }
+            } catch (_) {}
 
             const likeRenderer = document.querySelector('ytmusic-like-button-renderer, #like-button-renderer');
             const likeStatus = likeRenderer ? likeRenderer.getAttribute('like-status') : '';
@@ -1469,28 +1850,16 @@ void WebViewEngine::SetupInjectedBridge() {
                 const video = document.querySelector('video');
                 if (video) initAudioGraph(video);
                 unlockAudio();
-                if (smoothAudioEnabled && shouldFadeInNextTrack && video) {
+                if (smoothAudioEnabled && shouldFadeInNextTrack && audioCtx && fadeGainNode) {
                     shouldFadeInNextTrack = false;
-                    const target = getUserSliderVolume();
-                    video.volume = 0;
-                    smoothFade(video, 0, target, 250);
+                    const now = audioCtx.currentTime;
+                    fadeGainNode.gain.cancelScheduledValues(now);
+                    fadeGainNode.gain.setValueAtTime(0.001, now);
+                    fadeGainNode.gain.linearRampToValueAtTime(1.0, now + 0.22);
                 }
                 sendState(true);
             }, true);
-            document.addEventListener('volumechange', () => {
-                const video = document.querySelector('video');
-                if (video && !isAudioFading && video.volume > 0) {
-                    userSliderVolume = video.volume;
-                }
-            }, true);
-            document.addEventListener('input', (e) => {
-                if (e.target && (e.target.id === 'volume-slider' || (e.target.closest && e.target.closest('#volume-slider')))) {
-                    const video = document.querySelector('video');
-                    if (video && !isAudioFading && video.volume > 0) {
-                        userSliderVolume = video.volume;
-                    }
-                }
-            }, true);
+            document.addEventListener('volumechange', () => sendState(false), true);
             document.addEventListener('pause', () => sendState(true), true);
             document.addEventListener('loadeddata', () => {
                 const video = document.querySelector('video');
@@ -1506,9 +1875,16 @@ void WebViewEngine::SetupInjectedBridge() {
             window.addEventListener('keydown', (e) => {
                 const target = e.target;
                 const isEditing = target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable);
-                if (e.ctrlKey && e.altKey && (e.key === 'c' || e.key === 'C')) {
+                if (e.key === 'Escape') {
+                    const overlay = document.getElementById('ytr-eq-overlay');
+                    if (overlay && overlay.classList.contains('ytr-open')) {
+                        overlay.classList.remove('ytr-open');
+                        return;
+                    }
+                }
+                if (e.ctrlKey && e.altKey && (e.key === 'e' || e.key === 'E')) {
                     e.preventDefault();
-                    toggleAudioConsistency();
+                    toggleEqualizerModal();
                     return;
                 }
                 if ((e.ctrlKey && e.key === 'k') || (e.key === '/' && !isEditing)) {
@@ -1524,7 +1900,7 @@ void WebViewEngine::SetupInjectedBridge() {
             }, true);
 
             document.addEventListener('click', (e) => {
-                if (isActionBypassed || !smoothAudioEnabled || isAudioFading) return;
+                if (isActionBypassed || !smoothAudioEnabled) return;
                 const path = e.composedPath();
                 const isPlayBtn = path.some(el => el instanceof HTMLElement && (
                     el.id === 'play-pause-button' || el.classList?.contains('play-pause-button')
@@ -1686,11 +2062,11 @@ void WebViewEngine::SendControl(const std::wstring& action) {
                 if (btn) btn.click();
             })();
         )JS");
-    } else if (action == L"toggleConsistency") {
+    } else if (action == L"toggleEqualizer" || action == L"toggleConsistency") {
         ExecuteScript(LR"JS(
             (function() {
-                if (typeof window.__ytr_toggleConsistency === 'function') {
-                    window.__ytr_toggleConsistency();
+                if (typeof window.__ytr_toggleEqualizer === 'function') {
+                    window.__ytr_toggleEqualizer();
                 }
             })();
         )JS");
@@ -1708,7 +2084,7 @@ void WebViewEngine::SetVolume(int volumePercent) {
     ss << L"(function() { "
           L"const mp = document.querySelector('#movie_player'); "
           L"if (mp && typeof mp.setVolume === 'function') { mp.setVolume(" << volumePercent << L"); } "
-          L"const v = document.querySelector('video'); if (v) { v.volume = Math.pow(" << (volumePercent / 100.0) << L", 2); } "
+          L"else { const v = document.querySelector('video'); if (v) { v.volume = Math.pow(" << (volumePercent / 100.0) << L", 2); } } "
           L"})();";
     ExecuteScript(ss.str());
 }

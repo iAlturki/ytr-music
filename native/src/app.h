@@ -32,6 +32,7 @@ void App_ToggleMiniplayer();
 void App_ShowMainWindow();
 void App_HideMainWindow();
 void App_Quit();
+void LogBridge(const std::wstring& text);
 
 extern SongInfo g_currentSong;
 extern HWND g_hMainWindow;
