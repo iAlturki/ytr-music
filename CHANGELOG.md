@@ -3,6 +3,20 @@
 All notable changes to ytr-music are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses [Semantic Versioning](https://semver.org/).
 
+## [4.2.2] - 2026-10-01
+
+### Fixed
+- Smooth fades now also apply to YouTube Music's own play/pause, next and previous buttons (they used to cut the sound instantly). Skips still follow YouTube Music's shuffle, repeat and "previous restarts the track" behaviour.
+- Fades use a perceptual (decibel-linear) curve, so they are clearly audible instead of sounding like a late cut.
+- A new track's fade-in is no longer restarted halfway.
+
+### Added
+- Configurable fade length: Quick (0.25 s), Smooth (0.5 s, default) or Long (1 s), in the Audio panel.
+
+### Changed
+- Simpler top bar: logo, back/forward and search on the left, now playing in the centre, and one Audio button (equalizer and fades), the miniplayer button and a menu on the right. Home, Explore, Library, Reload and Quit moved into the menu.
+- The equalizer panel is now the Audio panel, with matching on/off switches for the equalizer and smooth fades.
+
 ## [4.2.1] - 2026-10-01
 
 ### Fixed
@@ -54,6 +68,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 ### Added
 - Native C++ Win32 + WebView2 client with ad blocking, desktop miniplayer, tray and taskbar controls, and global media hotkeys.
 
+[4.2.2]: https://github.com/iAlturki/ytr-music/compare/v4.2.1...v4.2.2
 [4.2.1]: https://github.com/iAlturki/ytr-music/compare/v4.2.0...v4.2.1
 [4.2.0]: https://github.com/iAlturki/ytr-music/compare/v4.1.0...v4.2.0
 [4.1.0]: https://github.com/iAlturki/ytr-music/compare/v4.0.0...v4.1.0

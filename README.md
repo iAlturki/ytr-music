@@ -36,10 +36,12 @@ See [CHANGELOG.md](CHANGELOG.md) for the full list.
 - **Pure Native Speed** – Modern C++17 on the Windows WebView2 Evergreen runtime. Single statically linked exe with the WebView2 loader and page bridge embedded.
 - **100% Ad-Free Audio Engine** – In-player JSON payload pruner, network ad-domain blocker and instant ad skipper. Zero audio ads, zero video ads, zero interruptions.
 - **10-Band Studio Equalizer** – Adjustable bands from `32Hz` to `16kHz` (-12dB to +12dB) with live dB readouts, a master toggle and presets: `Spatial`, `Studio`, `Cinema`, `Bass Boost`, `Vocal`, `Rock`, `Gaming` and `Flat`. Fully bypassed when off or flat.
-- **Studio-Grade Audio Transitions** – Web Audio gain ramps on pause, resume and track skips for pop-free listening, without touching the player volume.
+- **Smooth Fades** – Perceptual fade-out and fade-in on pause, resume and skip, from YouTube Music's own buttons, media keys, the tray and the miniplayer. Choose Quick (0.25 s), Smooth (0.5 s) or Long (1 s) in the Audio panel.
+- **Clean Top Bar** – Back/forward, search (`Ctrl + K`), now playing, one Audio button for the equalizer and fades, the miniplayer button and a compact menu.
 - **Glass Acrylic Miniplayer** – Right-docked widget above the taskbar with album art, animated EQ bars, seek scrubber, speaker mute toggle, volume slider and wheel volume.
 - **Global Hotkeys & Media Keys**
   - `Ctrl + Alt + M` – Toggle the desktop miniplayer
+  - `Ctrl + Alt + E` – Open the Audio panel (equalizer and smooth fades)
   - `Ctrl + Alt + Space` / `Media Play/Pause` – Play / Pause
   - `Ctrl + Alt + Right` / `Media Next` – Next track
   - `Ctrl + Alt + Left` / `Media Prev` – Previous track

@@ -209,130 +209,112 @@
                     right: 0 !important;
                     width: 100% !important;
                     height: 36px !important;
-                    background: #08090c !important;
-                    border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+                    background: #0b0c10 !important;
+                    border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important;
                     z-index: 2147483647 !important;
                     display: flex !important;
                     align-items: center !important;
                     justify-content: space-between !important;
-                    padding: 0 12px !important;
+                    padding: 0 8px 0 12px !important;
                     box-sizing: border-box !important;
                     user-select: none !important;
-                    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
-                    box-shadow: 0 2px 10px rgba(0,0,0,0.5) !important;
+                    font-family: "Segoe UI Variable Text", "Segoe UI", -apple-system, Roboto, sans-serif !important;
+                    box-shadow: none !important;
                 }
 
-                .ytr-topbar-left {
+                .ytr-topbar-left,
+                .ytr-topbar-right {
                     display: flex;
                     align-items: center;
-                    gap: 8px;
+                    gap: 2px;
                     flex-shrink: 0;
                 }
 
                 .ytr-topbar-brand {
                     display: flex;
                     align-items: center;
-                    gap: 6px;
-                    margin-right: 6px;
+                    gap: 7px;
+                    margin-right: 10px;
                 }
 
                 .ytr-brand-title {
                     color: #ffffff;
                     font-size: 12px;
-                    font-weight: 700;
-                    letter-spacing: -0.2px;
+                    font-weight: 600;
+                    letter-spacing: 0.1px;
                 }
 
-                .ytr-nav-btns {
-                    display: flex;
-                    align-items: center;
-                    gap: 4px;
-                }
-
-                .ytr-nav-btn {
-                    width: 26px;
-                    height: 24px;
-                    background: rgba(255, 255, 255, 0.06);
-                    border: 1px solid rgba(255, 255, 255, 0.1);
-                    border-radius: 4px;
-                    color: #d1d1d1;
-                    font-size: 11px;
+                .ytr-icon-btn {
+                    width: 28px;
+                    height: 26px;
+                    padding: 0;
                     display: inline-flex;
                     align-items: center;
                     justify-content: center;
-                    cursor: pointer;
-                    transition: all 0.15s ease;
-                }
-
-                .ytr-nav-btn:hover {
-                    background: rgba(255, 255, 255, 0.16);
-                    color: #ffffff;
-                    border-color: rgba(255, 255, 255, 0.25);
-                }
-
-                .ytr-menu-items {
-                    display: flex;
-                    align-items: center;
-                    gap: 2px;
-                    margin-left: 4px;
-                }
-
-                .ytr-menu-dropdown {
-                    position: relative;
-                }
-
-                .ytr-menu-label {
                     background: transparent;
                     border: none;
-                    color: rgba(255, 255, 255, 0.7);
-                    font-size: 11px;
-                    font-weight: 500;
-                    padding: 4px 8px;
-                    border-radius: 4px;
-                    cursor: pointer;
-                    transition: all 0.15s ease;
-                }
-
-                .ytr-menu-label:hover, .ytr-menu-dropdown:hover .ytr-menu-label {
-                    color: #ffffff;
-                    background: rgba(255, 255, 255, 0.1);
-                }
-
-                .ytr-dropdown-content {
-                    display: none;
-                    position: absolute;
-                    top: 100%;
-                    left: 0;
-                    min-width: 170px;
-                    background: #12141a;
-                    border: 1px solid rgba(255, 255, 255, 0.12);
                     border-radius: 6px;
-                    box-shadow: 0 8px 24px rgba(0,0,0,0.7);
-                    padding: 4px 0;
-                    z-index: 2147483647;
-                }
-
-                .ytr-menu-dropdown:hover .ytr-dropdown-content {
-                    display: block;
-                }
-
-                .ytr-menu-item {
-                    padding: 6px 12px;
-                    font-size: 11px;
-                    color: #d1d5db;
+                    color: rgba(255, 255, 255, 0.6);
                     cursor: pointer;
-                    transition: all 0.1s ease;
+                    transition: background 0.12s ease, color 0.12s ease;
                 }
 
-                .ytr-menu-item:hover {
-                    background: #ff3d00;
+                .ytr-icon-btn:hover,
+                .ytr-menu-open > .ytr-icon-btn {
+                    background: rgba(255, 255, 255, 0.08);
                     color: #ffffff;
                 }
 
-                .ytr-divider {
-                    height: 1px;
+                .ytr-icon-btn:active,
+                .ytr-search-btn:active,
+                .ytr-audio-btn:active {
+                    transform: translateY(0.5px);
+                }
+
+                .ytr-icon-btn:focus-visible,
+                .ytr-search-btn:focus-visible,
+                .ytr-audio-btn:focus-visible,
+                .ytr-menu-item:focus-visible {
+                    outline: 2px solid rgba(255, 90, 31, 0.75);
+                    outline-offset: 1px;
+                }
+
+                .ytr-search-btn {
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 8px;
+                    height: 26px;
+                    width: 220px;
+                    margin-left: 8px;
+                    padding: 0 5px 0 9px;
+                    background: rgba(255, 255, 255, 0.05);
+                    border: 1px solid rgba(255, 255, 255, 0.07);
+                    border-radius: 7px;
+                    color: rgba(255, 255, 255, 0.45);
+                    font: inherit;
+                    font-size: 11.5px;
+                    cursor: pointer;
+                    transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+                }
+
+                .ytr-search-btn:hover {
                     background: rgba(255, 255, 255, 0.08);
-                    margin: 4px 0;
+                    border-color: rgba(255, 255, 255, 0.13);
+                    color: rgba(255, 255, 255, 0.75);
+                }
+
+                .ytr-search-label {
+                    flex: 1;
+                    text-align: left;
+                }
+
+                .ytr-kbd {
+                    font: 600 9.5px/1 "Segoe UI", sans-serif;
+                    padding: 3px 5px;
+                    border-radius: 4px;
+                    background: rgba(255, 255, 255, 0.07);
+                    color: rgba(255, 255, 255, 0.5);
+                    letter-spacing: 0.2px;
                 }
 
                 .ytr-topbar-center {
@@ -340,70 +322,133 @@
                     align-items: center;
                     justify-content: center;
                     flex: 1;
-                    max-width: 450px;
-                    overflow: hidden;
-                    white-space: nowrap;
-                    text-overflow: ellipsis;
-                    margin: 0 10px;
+                    min-width: 0;
+                    max-width: 440px;
+                    margin: 0 12px;
                 }
 
                 #ytr-topbar-ticker {
-                    color: rgba(255, 255, 255, 0.65);
-                    font-size: 11px;
-                    font-weight: 500;
+                    color: rgba(255, 255, 255, 0.5);
+                    font-size: 11.5px;
                     overflow: hidden;
                     text-overflow: ellipsis;
                     white-space: nowrap;
                 }
 
-                .ytr-topbar-right {
+                .ytr-audio-btn {
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 7px;
+                    height: 26px;
+                    margin-right: 4px;
+                    padding: 0 10px 0 8px;
+                    background: transparent;
+                    border: 1px solid rgba(255, 255, 255, 0.1);
+                    border-radius: 7px;
+                    color: rgba(255, 255, 255, 0.7);
+                    font: inherit;
+                    font-size: 11.5px;
+                    font-weight: 500;
+                    cursor: pointer;
+                    transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+                }
+
+                .ytr-audio-btn:hover {
+                    background: rgba(255, 255, 255, 0.06);
+                    border-color: rgba(255, 255, 255, 0.18);
+                    color: #ffffff;
+                }
+
+                .ytr-audio-btn.ytr-eq-on {
+                    color: #ffffff;
+                    background: rgba(255, 61, 0, 0.09);
+                    border-color: rgba(255, 61, 0, 0.38);
+                }
+
+                .ytr-audio-btn.ytr-eq-on svg {
+                    color: #ff5a1f;
+                }
+
+                .ytr-fade-dot {
+                    width: 6px;
+                    height: 6px;
+                    border-radius: 50%;
+                    background: rgba(255, 255, 255, 0.22);
+                    transition: background 0.2s ease, box-shadow 0.2s ease;
+                }
+
+                .ytr-fade-dot.ytr-on {
+                    background: #4ade80;
+                    box-shadow: 0 0 6px rgba(74, 222, 128, 0.55);
+                }
+
+                .ytr-menu-dropdown {
+                    position: relative;
+                }
+
+                .ytr-dropdown-content {
+                    display: none;
+                    position: absolute;
+                    top: calc(100% + 6px);
+                    right: 0;
+                    min-width: 210px;
+                    padding: 5px;
+                    background: #14161d;
+                    border: 1px solid rgba(255, 255, 255, 0.09);
+                    border-radius: 10px;
+                    box-shadow: 0 14px 36px rgba(0, 0, 0, 0.6);
+                    z-index: 2147483647;
+                }
+
+                .ytr-menu-open .ytr-dropdown-content {
+                    display: block;
+                    animation: ytrMenuIn 0.12s ease-out;
+                }
+
+                @keyframes ytrMenuIn {
+                    from { opacity: 0; transform: translateY(-4px); }
+                    to { opacity: 1; transform: none; }
+                }
+
+                .ytr-menu-item {
                     display: flex;
                     align-items: center;
-                    gap: 8px;
-                    flex-shrink: 0;
-                }
-
-                .ytr-badge-link {
-                    display: inline-flex;
-                    align-items: center;
-                    gap: 6px;
-                    padding: 3px 10px;
-                    background: rgba(255, 61, 0, 0.12);
-                    border: 1px solid rgba(255, 61, 0, 0.40);
-                    border-radius: 999px;
-                    color: #ffffff;
-                    font-size: 11px;
-                    text-decoration: none;
-                    transition: all 0.2s ease;
-                }
-
-                .ytr-badge-link:hover {
-                    background: rgba(255, 61, 0, 0.25);
-                    border-color: #ff3d00;
-                    box-shadow: 0 0 10px rgba(255, 61, 0, 0.4);
-                }
-
-                .ytr-pip-button {
-                    display: inline-flex;
-                    align-items: center;
-                    gap: 6px;
-                    padding: 4px 11px;
-                    background: linear-gradient(135deg, rgba(255, 61, 0, 0.22) 0%, rgba(20, 22, 32, 0.70) 100%);
-                    border: 1px solid rgba(255, 61, 0, 0.50);
+                    justify-content: space-between;
+                    gap: 14px;
+                    padding: 7px 10px;
                     border-radius: 6px;
-                    color: #ffffff;
-                    font-size: 11px;
-                    font-weight: 600;
+                    font-size: 12px;
+                    color: rgba(255, 255, 255, 0.82);
+                    text-decoration: none;
                     cursor: pointer;
-                    transition: all 0.2s ease;
-                    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
                 }
 
-                .ytr-pip-button:hover {
-                    background: linear-gradient(135deg, rgba(255, 61, 0, 0.45) 0%, rgba(255, 120, 50, 0.30) 100%);
-                    border-color: #ff3d00;
-                    box-shadow: 0 0 12px rgba(255, 61, 0, 0.55);
-                    transform: translateY(-1px);
+                .ytr-menu-item:hover {
+                    background: rgba(255, 255, 255, 0.07);
+                    color: #ffffff;
+                }
+
+                .ytr-menu-item.ytr-danger:hover {
+                    background: rgba(239, 68, 68, 0.14);
+                    color: #fca5a5;
+                }
+
+                .ytr-divider {
+                    height: 1px;
+                    margin: 5px 4px;
+                    background: rgba(255, 255, 255, 0.07);
+                }
+
+                .ytr-menu-foot {
+                    display: block;
+                    padding: 6px 10px 4px;
+                    font-size: 10.5px;
+                    color: rgba(255, 255, 255, 0.35);
+                    text-decoration: none;
+                }
+
+                .ytr-menu-foot:hover {
+                    color: #ff5a1f;
                 }
             `;
 
@@ -632,6 +677,99 @@
                 .ytr-eq-reset-btn:hover {
                     background: rgba(255, 255, 255, 0.14) !important;
                     color: #ffffff !important;
+                }
+
+                .ytr-fade-row {
+                    display: flex;
+                    align-items: center;
+                    gap: 10px;
+                    padding: 10px 12px;
+                    background: rgba(255, 255, 255, 0.03);
+                    border: 1px solid rgba(255, 255, 255, 0.07);
+                    border-radius: 10px;
+                }
+
+                .ytr-fade-title {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 2px;
+                    margin-right: auto;
+                }
+
+                .ytr-fade-title b {
+                    font-size: 12.5px;
+                    font-weight: 600;
+                    color: #ffffff;
+                }
+
+                .ytr-fade-title span {
+                    font-size: 11px;
+                    color: rgba(255, 255, 255, 0.45);
+                }
+
+                .ytr-fade-chip {
+                    padding: 5px 10px;
+                    background: transparent;
+                    border: 1px solid rgba(255, 255, 255, 0.12);
+                    border-radius: 999px;
+                    color: rgba(255, 255, 255, 0.7);
+                    font: inherit;
+                    font-size: 11px;
+                    cursor: pointer;
+                    transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+                }
+
+                .ytr-fade-chip:hover {
+                    border-color: rgba(255, 255, 255, 0.25);
+                    color: #ffffff;
+                }
+
+                .ytr-fade-chip.ytr-selected {
+                    background: rgba(74, 222, 128, 0.12);
+                    border-color: rgba(74, 222, 128, 0.5);
+                    color: #86efac;
+                }
+
+                .ytr-fade-row.ytr-off .ytr-fade-chip {
+                    opacity: 0.4;
+                }
+
+                .ytr-eq-switch-label {
+                    font-size: 12px;
+                    color: rgba(255, 255, 255, 0.6);
+                }
+
+                .ytr-switch {
+                    position: relative;
+                    width: 34px;
+                    height: 20px;
+                    flex-shrink: 0;
+                    padding: 0;
+                    background: rgba(255, 255, 255, 0.14);
+                    border: none;
+                    border-radius: 999px;
+                    cursor: pointer;
+                    transition: background 0.15s ease;
+                }
+
+                .ytr-switch::after {
+                    content: '';
+                    position: absolute;
+                    top: 3px;
+                    left: 3px;
+                    width: 14px;
+                    height: 14px;
+                    border-radius: 50%;
+                    background: #ffffff;
+                    transition: transform 0.15s ease;
+                }
+
+                .ytr-switch.ytr-on {
+                    background: #22c55e;
+                }
+
+                .ytr-switch.ytr-on::after {
+                    transform: translateX(14px);
                 }
             `;
 
@@ -1059,6 +1197,19 @@
     A.pending = A.pending || null;
 
     let smoothAudioEnabled = lsGet('ytr_smooth_audio') === 'true';
+    // Fade length in seconds (Quick / Smooth / Long in the audio panel).
+    const FADE_CHOICES = [{ label: 'Quick', sec: 0.25 }, { label: 'Smooth', sec: 0.5 }, { label: 'Long', sec: 1.0 }];
+    let fadeSec = (() => {
+        const v = parseFloat(lsGet('ytr_fade_sec'));
+        return Number.isFinite(v) && v >= 0.1 && v <= 2 ? v : 0.5;
+    })();
+    // Exponential ramps cannot reach 0; stopping at -60 dB keeps the audible part of the curve
+    // spread over the whole fade (the pause itself cuts the rest).
+    const FADE_FLOOR = 0.001;
+    function fadeOutSec() { return fadeSec; }
+    function fadeInSec() { return Math.min(2, fadeSec * 1.2); }
+    // A skip should feel responsive even with long fades.
+    function skipOutSec() { return Math.min(fadeSec, 0.6); }
 
     function eqIsActive() {
         if (!A.masterEnabled) return false;
@@ -1087,16 +1238,20 @@
         }
     }
 
+    // Ramps are exponential (linear in dB), which the ear hears as an even fade; a linear
+    // gain ramp sounds like a late, abrupt cut.
     function rampFade(target, dur, from) {
         if (!A.ctx || !A.fadeGain) return;
         const g = A.fadeGain.gain;
         const now = A.ctx.currentTime;
+        const start = Math.max(FADE_FLOOR, from === undefined ? g.value : from);
+        const end = Math.max(FADE_FLOOR, target);
         try {
             g.cancelScheduledValues(now);
-            g.setValueAtTime(from === undefined ? g.value : from, now);
-            g.linearRampToValueAtTime(target, now + dur);
+            g.setValueAtTime(start, now);
+            g.exponentialRampToValueAtTime(end, now + Math.max(0.01, dur));
         } catch (_) {
-            g.value = target;
+            g.value = end;
         }
     }
 
@@ -1392,12 +1547,10 @@
         const btn = document.getElementById('ytr-btn-eq');
         const text = document.getElementById('ytr-btn-eq-text');
         if (!btn) return;
-        const targetBg = A.masterEnabled ? 'rgba(255, 61, 0, 0.18)' : 'rgba(255, 255, 255, 0.06)';
-        btn.style.background = targetBg;
-        btn.style.borderColor = A.masterEnabled ? 'rgba(255, 61, 0, 0.45)' : 'rgba(255, 255, 255, 0.1)';
-        btn.style.color = A.masterEnabled ? '#ff5722' : '#d1d1d1';
+        btn.classList.toggle('ytr-eq-on', !!A.masterEnabled);
         if (text) {
-            text.textContent = A.masterEnabled ? `EQ (${A.presetName})` : 'EQ: OFF';
+            const label = A.masterEnabled ? A.presetName : 'EQ off';
+            if (text.textContent !== label) text.textContent = label;
         }
     }
 
@@ -1408,11 +1561,7 @@
         if (badge) badge.textContent = A.presetName;
 
         const toggleBtn = document.getElementById('ytr-eq-master-toggle');
-        if (toggleBtn) {
-            toggleBtn.textContent = A.masterEnabled ? '\u2713 EQ: ON' : '\u25CB EQ: OFF';
-            if (A.masterEnabled) toggleBtn.classList.add('ytr-active');
-            else toggleBtn.classList.remove('ytr-active');
-        }
+        if (toggleBtn) toggleBtn.classList.toggle('ytr-on', !!A.masterEnabled);
 
         const chips = overlay.querySelectorAll('.ytr-eq-preset-chip');
         chips.forEach(chip => {
@@ -1443,6 +1592,7 @@
             const isOpen = overlay.classList.toggle('ytr-open');
             if (isOpen) {
                 updateEqualizerModalUI();
+                updateSmoothAudioUI();
             }
         }
     }
@@ -1463,7 +1613,7 @@
         ]);
         const titleSpan = createEl('span', { className: 'ytr-eq-title' });
         titleSpan.appendChild(titleSvg);
-        titleSpan.appendChild(document.createTextNode('Studio Equalizer'));
+        titleSpan.appendChild(document.createTextNode('Audio'));
         const badge = createEl('span', { id: 'ytr-eq-preset-badge', className: 'ytr-eq-badge' }, A.presetName);
         titleGrp.appendChild(titleSpan);
         titleGrp.appendChild(badge);
@@ -1471,9 +1621,9 @@
         const actions = createEl('div', { className: 'ytr-eq-header-actions' });
         const toggleBtn = createEl('button', {
             id: 'ytr-eq-master-toggle',
-            className: 'ytr-eq-toggle-btn' + (A.masterEnabled ? ' ytr-active' : ''),
-            title: 'Master Equalizer Toggle'
-        }, A.masterEnabled ? '\u2713 EQ: ON' : '\u25CB EQ: OFF');
+            className: 'ytr-switch' + (A.masterEnabled ? ' ytr-on' : ''),
+            title: 'Equalizer on/off'
+        });
         toggleBtn.addEventListener('click', () => {
             setEqMasterEnabled(!A.masterEnabled);
         });
@@ -1481,11 +1631,32 @@
         const closeBtn = createEl('button', { className: 'ytr-eq-close-btn', title: 'Close (Esc)' }, '\u2715');
         closeBtn.addEventListener('click', () => overlay.classList.remove('ytr-open'));
 
+        actions.appendChild(createEl('span', { className: 'ytr-eq-switch-label' }, 'Equalizer'));
         actions.appendChild(toggleBtn);
         actions.appendChild(closeBtn);
 
         header.appendChild(titleGrp);
         header.appendChild(actions);
+
+        // Smooth fades: on/off and length
+        const fadeRow = createEl('div', { id: 'ytr-fade-row', className: 'ytr-fade-row' });
+        const fadeTitle = createEl('div', { className: 'ytr-fade-title' });
+        fadeTitle.appendChild(createEl('b', {}, 'Smooth fades'));
+        fadeTitle.appendChild(createEl('span', {}, 'Fade out and in on pause, resume and skip'));
+        fadeRow.appendChild(fadeTitle);
+        for (let i = 0; i < FADE_CHOICES.length; i++) {
+            const c = FADE_CHOICES[i];
+            const chip = createEl('button', {
+                className: 'ytr-fade-chip',
+                'data-sec': String(c.sec),
+                title: c.label + ' fade (' + c.sec + ' s)'
+            }, c.label);
+            chip.addEventListener('click', () => setFadeLength(c.sec));
+            fadeRow.appendChild(chip);
+        }
+        const fadeSwitch = createEl('button', { id: 'ytr-fade-switch', className: 'ytr-switch', title: 'Smooth fades on/off' });
+        fadeSwitch.addEventListener('click', toggleSmoothAudio);
+        fadeRow.appendChild(fadeSwitch);
 
         // 2. Presets Row
         const presetsWrap = createEl('div', { className: 'ytr-eq-presets-wrap' });
@@ -1545,7 +1716,7 @@
 
         // 4. Footer
         const footer = createEl('div', { className: 'ytr-eq-footer' });
-        const hint = createEl('span', {}, '10-Band Biquad Studio Equalizer \u2022 32Hz - 16kHz \u2022 64-bit Audio DSP');
+        const hint = createEl('span', {}, '10-band equalizer \u2022 32 Hz \u2013 16 kHz \u2022 bypassed when off or flat');
         const resetBtn = createEl('button', { className: 'ytr-eq-reset-btn' }, 'Reset to Flat (0 dB)');
         resetBtn.addEventListener('click', () => {
             applyEqGains(EQ_PRESETS['Flat'], 'Flat');
@@ -1554,6 +1725,7 @@
         footer.appendChild(resetBtn);
 
         modal.appendChild(header);
+        modal.appendChild(fadeRow);
         modal.appendChild(presetsWrap);
         modal.appendChild(slidersBox);
         modal.appendChild(footer);
@@ -1573,33 +1745,30 @@
     // --- Studio-Grade Smooth Audio Transitions & Playback Control ---
     function updateSmoothAudioUI() {
         try {
-            const item = document.getElementById('ytr-menu-fade');
-            if (item) {
-                const targetText = smoothAudioEnabled ? '\u2713 Smooth Audio (Fade): ON' : '\u25CB Smooth Audio (Fade): OFF';
-                if (item.textContent !== targetText) {
-                    item.textContent = targetText;
-                    item.style.color = smoothAudioEnabled ? '#4ade80' : '#9ca3af';
-                    item.style.fontWeight = smoothAudioEnabled ? '600' : 'normal';
-                }
-            }
-
-            const pill = document.getElementById('ytr-btn-smooth');
-            const pillText = document.getElementById('ytr-btn-smooth-text');
-            if (pill) {
-                const targetBg = smoothAudioEnabled ? 'rgba(74, 222, 128, 0.16)' : 'rgba(255, 255, 255, 0.06)';
-                if (pill.style.background !== targetBg) {
-                    pill.style.background = targetBg;
-                    pill.style.borderColor = smoothAudioEnabled ? 'rgba(74, 222, 128, 0.45)' : 'rgba(255, 255, 255, 0.1)';
-                    pill.style.color = smoothAudioEnabled ? '#4ade80' : '#d1d1d1';
-                }
-            }
-            if (pillText) {
-                const targetPillText = smoothAudioEnabled ? 'Smooth Audio: ON' : 'Smooth Audio: OFF';
-                if (pillText.textContent !== targetPillText) {
-                    pillText.textContent = targetPillText;
+            const dot = document.getElementById('ytr-fade-dot');
+            if (dot) dot.classList.toggle('ytr-on', smoothAudioEnabled);
+            const audioBtn = document.getElementById('ytr-btn-eq');
+            if (audioBtn) audioBtn.title = 'Audio: equalizer and smooth fades (Ctrl+Alt+E)\nSmooth fades: ' +
+                (smoothAudioEnabled ? 'on, ' + fadeSec + ' s' : 'off');
+            const sw = document.getElementById('ytr-fade-switch');
+            if (sw) sw.classList.toggle('ytr-on', smoothAudioEnabled);
+            const row = document.getElementById('ytr-fade-row');
+            if (row) {
+                row.classList.toggle('ytr-off', !smoothAudioEnabled);
+                const chips = row.querySelectorAll('.ytr-fade-chip');
+                for (let i = 0; i < chips.length; i++) {
+                    chips[i].classList.toggle('ytr-selected', parseFloat(chips[i].getAttribute('data-sec')) === fadeSec);
                 }
             }
         } catch (_) {}
+    }
+
+    function setFadeLength(sec) {
+        fadeSec = sec;
+        lsSet('ytr_fade_sec', String(sec));
+        // Picking a length is a clear sign the user wants fades.
+        if (!smoothAudioEnabled) toggleSmoothAudio();
+        else updateSmoothAudioUI();
     }
 
     function toggleSmoothAudio() {
@@ -1623,8 +1792,8 @@
         const now = A.ctx.currentTime;
         if (smoothAudioEnabled) {
             // playerPlayPause may already have started this ramp.
-            if (A.fadeInAt >= 0 && now - A.fadeInAt < 0.25) return;
-            rampFade(1.0, 0.20, 0.001);
+            if (A.fadeInAt >= 0 && now - A.fadeInAt < fadeInSec()) return;
+            rampFade(1.0, fadeInSec(), FADE_FLOOR);
             A.fadeInAt = now;
         } else if (A.fadeGain.gain.value < 0.99) {
             rampFade(1.0, 0.03);
@@ -1635,9 +1804,10 @@
     function ensureAudible(v) {
         if (!inFadeGraph(v) || A.pending || v.paused) return;
         const now = A.ctx.currentTime;
-        if (A.fadeInAt >= 0 && now - A.fadeInAt < 0.5) return;
+        // A fade-in started by the 'play' handler is still running; restarting it would stretch it.
+        if (A.fadeInAt >= 0 && now - A.fadeInAt < fadeInSec() + 0.1) return;
         if (A.fadeGain.gain.value < 0.5) {
-            rampFade(1.0, smoothAudioEnabled ? 0.20 : 0.03);
+            rampFade(1.0, smoothAudioEnabled ? fadeInSec() : 0.03);
             A.fadeInAt = now;
         }
     }
@@ -1656,23 +1826,35 @@
         }
     }
 
-    function skipNow(kind) {
+    // Set while we re-click a native player-bar button ourselves, so the interceptor lets it through.
+    let nativeClickBypass = false;
+
+    function clickNative(btn) {
+        nativeClickBypass = true;
+        try { btn.click(); } finally { nativeClickBypass = false; }
+    }
+
+    function skipNow(kind, btn) {
+        if (btn && btn.isConnected) {
+            clickNative(btn);
+            return;
+        }
         const mp = getPlayer();
         const fn = kind === 'next' ? 'nextVideo' : 'previousVideo';
         if (mp && typeof mp[fn] === 'function') {
             mp[fn]();
             return;
         }
-        const btn = document.querySelector(kind === 'next'
+        const nb = document.querySelector(kind === 'next'
             ? '.next-button.ytmusic-player-bar, #next-button'
             : '.previous-button.ytmusic-player-bar, #previous-button');
-        if (btn) btn.click();
+        if (nb) clickNative(nb);
     }
 
-    function runSkips(kind, count) {
-        skipNow(kind);
+    function runSkips(kind, count, btn) {
+        skipNow(kind, btn);
         for (let i = 1; i < count; i++) {
-            setTimeout(() => skipNow(kind), 120 * i);
+            setTimeout(() => skipNow(kind, btn), 120 * i);
         }
         if (A.fadeGain && A.fadeGain.gain.value < 0.5) {
             setTimeout(() => ensureAudible(getMainVideo()), 120 * count + 600);
@@ -1695,7 +1877,7 @@
     function runDeferredSkips(p) {
         let n = p.count;
         if (p.kind === 'next' && p.track && trackKey() !== p.track) n--;
-        if (n > 0) runSkips(p.kind, n);
+        if (n > 0) runSkips(p.kind, n, p.btn);
         else ensureAudible(getMainVideo());
     }
 
@@ -1735,13 +1917,13 @@
 
         if (playing) {
             if (smoothAudioEnabled && inFadeGraph(v)) {
-                rampFade(0.001, 0.16);
+                rampFade(FADE_FLOOR, fadeOutSec());
                 A.pending = {
                     kind: 'pause',
                     timer: setTimeout(() => {
                         A.pending = null;
                         try { playerPause(getPlayer(), getVideo()); } catch (_) {}
-                    }, 170)
+                    }, fadeOutSec() * 1000 + 15)
                 };
             } else {
                 playerPause(mp, v);
@@ -1750,14 +1932,14 @@
             // Resume is fire-and-forget: gating playVideo on it could block playback forever.
             wakeCtx();
             if (smoothAudioEnabled && inFadeGraph(v)) {
-                rampFade(1.0, 0.20, 0.001);
+                rampFade(1.0, fadeInSec(), FADE_FLOOR);
                 A.fadeInAt = A.ctx.currentTime;
             }
             playerResume(mp, v);
         }
     }
 
-    function playerSkip(kind) {
+    function playerSkip(kind, btn) {
         const pend = A.pending;
         if (pend) {
             if (pend.kind === kind) {
@@ -1768,20 +1950,58 @@
         }
         const v = getVideo();
         if (!smoothAudioEnabled || !inFadeGraph(v) || v.paused) {
-            runSkips(kind, 1);
+            runSkips(kind, 1, btn);
             return;
         }
-        rampFade(0.001, 0.14);
+        rampFade(FADE_FLOOR, skipOutSec());
         A.pending = {
             kind: kind,
             count: 1,
+            btn: btn,
             track: trackKey(),
             timer: setTimeout(() => {
                 const p = A.pending;
                 A.pending = null;
                 try { runDeferredSkips(p || { kind: kind, count: 1, track: '' }); } catch (_) {}
-            }, 150)
+            }, skipOutSec() * 1000 + 10)
         };
+    }
+
+    // YouTube Music's own play/pause, next and previous buttons would cut the audio instantly.
+    // With Smooth Audio on, fade first; skips then re-click the same button so YTM's own rules
+    // (shuffle, repeat, previous restarting the track) still decide what plays next.
+    function onNativeControlClick(e) {
+        if (nativeClickBypass || !smoothAudioEnabled || e.button !== 0) return;
+        const path = e.composedPath ? e.composedPath() : [];
+        let kind = null;
+        let btn = null;
+        let inPlayerBar = false;
+        for (let i = 0; i < path.length; i++) {
+            const el = path[i];
+            if (!el || el.nodeType !== 1) continue;
+            if (!kind) {
+                if (el.id === 'play-pause-button' || (el.classList && el.classList.contains('play-pause-button'))) {
+                    kind = 'toggle';
+                } else if (el.classList && el.classList.contains('next-button')) {
+                    kind = 'next';
+                    btn = el;
+                } else if (el.classList && el.classList.contains('previous-button')) {
+                    kind = 'prev';
+                    btn = el;
+                }
+            }
+            if (el.tagName === 'YTMUSIC-PLAYER-BAR') {
+                inPlayerBar = true;
+                break;
+            }
+        }
+        if (!kind || !inPlayerBar || isAdNow()) return;
+        const v = getVideo();
+        if (!inFadeGraph(v)) return;
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        if (kind === 'toggle') playerPlayPause();
+        else playerSkip(kind, btn);
     }
 
     function playerNext() {
@@ -1805,6 +2025,8 @@
         applyEqGains(EQ_PRESETS[p] || EQ_PRESETS['Flat'], EQ_PRESETS[p] ? p : 'Flat');
     };
 
+    let topMenuDocListeners = false;
+
     function installTopBarUI() {
         try {
             ensureStyles();
@@ -1823,192 +2045,133 @@
 
             bar = createEl('nav', { id: 'ytmd-title-bar-main-panel' });
 
-            // 1. Left Section: Brand, Navigation buttons, Dropdown menus
-            const topbarLeft = createEl('div', { className: 'ytr-topbar-left' });
+            const icon = (d, size) => createSvg(size || 16, size || 16, '0 0 24 24', [
+                { tag: 'path', attrs: { d: d, fill: 'currentColor' } }
+            ]);
 
-            const brand = createEl('div', { className: 'ytr-topbar-brand' });
-            const brandSvg = createSvg(16, 16, '0 0 24 24', [
+            // Left: brand, history, search
+            const topbarLeft = createEl('div', { className: 'ytr-topbar-left' });
+            const brand = createEl('div', { className: 'ytr-topbar-brand', title: 'ytr-music \u2022 iALTURKi Edition' });
+            brand.appendChild(createSvg(16, 16, '0 0 24 24', [
                 { tag: 'circle', attrs: { cx: '12', cy: '12', r: '11', fill: '#ff0000' } },
                 { tag: 'polygon', attrs: { points: '9.5,7.5 16.5,12 9.5,16.5', fill: '#ffffff' } }
-            ]);
-            const brandTitle = createEl('span', { className: 'ytr-brand-title' }, 'ytr-music');
-            brand.appendChild(brandSvg);
-            brand.appendChild(brandTitle);
+            ]));
+            brand.appendChild(createEl('span', { className: 'ytr-brand-title' }, 'ytr-music'));
 
-            const navBtns = createEl('div', { className: 'ytr-nav-btns' });
-            const btnBack = createEl('button', { className: 'ytr-nav-btn', id: 'ytr-btn-back', title: 'Back' }, '\u25C0');
-            const btnForward = createEl('button', { className: 'ytr-nav-btn', id: 'ytr-btn-forward', title: 'Forward' }, '\u25B6');
-            const btnReload = createEl('button', { className: 'ytr-nav-btn', id: 'ytr-btn-reload', title: 'Reload' }, '\u27F3');
+            const btnBack = createEl('button', { className: 'ytr-icon-btn', id: 'ytr-btn-back', title: 'Back (Alt+Left)' });
+            btnBack.appendChild(icon('M15.4 7.4 14 6l-6 6 6 6 1.4-1.4L10.8 12z'));
+            const btnForward = createEl('button', { className: 'ytr-icon-btn', id: 'ytr-btn-forward', title: 'Forward (Alt+Right)' });
+            btnForward.appendChild(icon('M8.6 16.6 10 18l6-6-6-6-1.4 1.4 4.6 4.6z'));
 
-            const btnSearch = createEl('button', {
-                className: 'ytr-nav-btn',
-                id: 'ytr-btn-search',
-                title: 'Search (Ctrl+K or /)',
-                style: 'width: auto; padding: 0 8px; gap: 5px; display: inline-flex; align-items: center;'
-            });
-            const searchSvg = createSvg(12, 12, '0 0 24 24', [
-                { tag: 'path', attrs: { d: 'M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z', fill: 'currentColor' } }
-            ]);
-            const searchSpan = createEl('span', { style: 'font-size: 10px; opacity: 0.85;' }, 'Search');
-            const searchKbd = createEl('kbd', { style: 'font-size: 9px; background: rgba(255,255,255,0.14); padding: 1px 4px; border-radius: 3px; border: 1px solid rgba(255,255,255,0.22); font-family: monospace;' }, 'Ctrl+K');
-            btnSearch.appendChild(searchSvg);
-            btnSearch.appendChild(searchSpan);
-            btnSearch.appendChild(searchKbd);
-
-            const btnSmooth = createEl('button', {
-                className: 'ytr-nav-btn',
-                id: 'ytr-btn-smooth',
-                title: 'Smooth Audio Fading (Fade on Pause, Resume, Skip) - Click to Toggle',
-                style: 'width: auto; padding: 0 8px; gap: 5px; display: inline-flex; align-items: center; border-radius: 4px; transition: all 0.2s ease;'
-            });
-            const smoothSvg = createSvg(12, 12, '0 0 24 24', [
-                { tag: 'path', attrs: { d: 'M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z', fill: 'currentColor' } }
-            ]);
-            const smoothSpan = createEl('span', { id: 'ytr-btn-smooth-text', style: 'font-size: 10px; font-weight: 600;' }, 'Smooth Audio: OFF');
-            btnSmooth.appendChild(smoothSvg);
-            btnSmooth.appendChild(smoothSpan);
-
-            const btnEq = createEl('button', {
-                className: 'ytr-nav-btn',
-                id: 'ytr-btn-eq',
-                title: 'Studio Equalizer & Presets (Click to Open)',
-                style: 'width: auto; padding: 0 8px; gap: 5px; display: inline-flex; align-items: center; border-radius: 4px; transition: all 0.2s ease;'
-            });
-            const eqSvg = createSvg(12, 12, '0 0 24 24', [
-                { tag: 'path', attrs: { d: 'M10 20h4V4h-4v16zm-6 0h4v-8H4v8zM16 9v11h4V9h-4z', fill: 'currentColor' } }
-            ]);
-            const eqSpan = createEl('span', { id: 'ytr-btn-eq-text', style: 'font-size: 10px; font-weight: 600;' }, 'EQ');
-            btnEq.appendChild(eqSvg);
-            btnEq.appendChild(eqSpan);
-
-            navBtns.appendChild(btnBack);
-            navBtns.appendChild(btnForward);
-            navBtns.appendChild(btnReload);
-            navBtns.appendChild(btnSearch);
-            navBtns.appendChild(btnSmooth);
-            navBtns.appendChild(btnEq);
-
-            const menuItems = createEl('div', { className: 'ytr-menu-items' });
-            function makeDropdown(label, items) {
-                const dd = createEl('div', { className: 'ytr-menu-dropdown' });
-                const lbl = createEl('button', { className: 'ytr-menu-label' }, label);
-                const content = createEl('div', { className: 'ytr-dropdown-content' });
-                for (let i = 0; i < items.length; i++) {
-                    const it = items[i];
-                    if (it === 'divider') {
-                        content.appendChild(createEl('div', { className: 'ytr-divider' }));
-                    } else {
-                        content.appendChild(createEl('div', { className: 'ytr-menu-item', id: it.id }, it.text));
-                    }
-                }
-                dd.appendChild(lbl);
-                dd.appendChild(content);
-                return dd;
-            }
-
-            const fileDd = makeDropdown('File', [
-                { id: 'ytr-menu-pip', text: 'Desktop Miniplayer (Ctrl+Alt+M)' },
-                'divider',
-                { id: 'ytr-menu-quit', text: 'Quit' }
-            ]);
-            const navDd = makeDropdown('Navigate', [
-                { id: 'ytr-menu-home', text: 'Home' },
-                { id: 'ytr-menu-explore', text: 'Explore' },
-                { id: 'ytr-menu-library', text: 'Library' }
-            ]);
-            const playDd = makeDropdown('Playback', [
-                { id: 'ytr-menu-playpause', text: 'Play / Pause (Space)' },
-                { id: 'ytr-menu-next', text: 'Next Track (N)' },
-                { id: 'ytr-menu-prev', text: 'Previous Track (P)' },
-                { id: 'ytr-menu-like', text: 'Like Track (L)' },
-                'divider',
-                { id: 'ytr-menu-fade', text: 'Smooth Audio (Fade): OFF' },
-                { id: 'ytr-menu-eq', text: 'Studio Equalizer (EQ)...' }
-            ]);
-
-            menuItems.appendChild(fileDd);
-            menuItems.appendChild(navDd);
-            menuItems.appendChild(playDd);
+            const btnSearch = createEl('button', { className: 'ytr-search-btn', id: 'ytr-btn-search', title: 'Search (Ctrl+K or /)' });
+            btnSearch.appendChild(icon('M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z', 14));
+            btnSearch.appendChild(createEl('span', { className: 'ytr-search-label' }, 'Search'));
+            btnSearch.appendChild(createEl('kbd', { className: 'ytr-kbd' }, 'Ctrl K'));
 
             topbarLeft.appendChild(brand);
-            topbarLeft.appendChild(navBtns);
-            topbarLeft.appendChild(menuItems);
+            topbarLeft.appendChild(btnBack);
+            topbarLeft.appendChild(btnForward);
+            topbarLeft.appendChild(btnSearch);
 
-            // 2. Center Section: Song Ticker
+            // Center: now playing
             const topbarCenter = createEl('div', { className: 'ytr-topbar-center' });
-            const ticker = createEl('span', { id: 'ytr-topbar-ticker' }, '\uD83C\uDFB5 Ready to Play');
-            topbarCenter.appendChild(ticker);
+            topbarCenter.appendChild(createEl('span', { id: 'ytr-topbar-ticker' }, ''));
 
-            // 3. Right Section: GitHub badge + PiP button
+            // Right: audio, miniplayer, overflow menu
             const topbarRight = createEl('div', { className: 'ytr-topbar-right' });
-            const badgeLink = createEl('a', {
-                href: 'https://github.com/iAlturki',
+            const btnAudio = createEl('button', { className: 'ytr-audio-btn', id: 'ytr-btn-eq' });
+            btnAudio.appendChild(icon('M10 20h4V4h-4v16zm-6 0h4v-8H4v8zM16 9v11h4V9h-4z', 13));
+            btnAudio.appendChild(createEl('span', { id: 'ytr-btn-eq-text' }, 'EQ'));
+            btnAudio.appendChild(createEl('span', { id: 'ytr-fade-dot', className: 'ytr-fade-dot' }));
+
+            const btnPip = createEl('button', { className: 'ytr-icon-btn', id: 'ytr-pip-btn', title: 'Miniplayer: close to the floating desktop player' });
+            btnPip.appendChild(icon('M19 11h-8v6h8v-6zm4 8V4.98C23 3.88 22.1 3 21 3H3c-1.1 0-2 .88-2 1.98V19c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2zm-2 .02H3V4.97h18v14.05z', 15));
+
+            const menu = createEl('div', { className: 'ytr-menu-dropdown', id: 'ytr-more' });
+            const btnMore = createEl('button', { className: 'ytr-icon-btn', id: 'ytr-btn-more', title: 'More' });
+            btnMore.appendChild(icon('M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z'));
+            const content = createEl('div', { className: 'ytr-dropdown-content' });
+            const menuItem = (id, text, kbd, extraClass) => {
+                const it = createEl('div', { className: 'ytr-menu-item' + (extraClass ? ' ' + extraClass : ''), id: id, tabindex: '0' });
+                it.appendChild(createEl('span', {}, text));
+                if (kbd) it.appendChild(createEl('kbd', { className: 'ytr-kbd' }, kbd));
+                return it;
+            };
+            content.appendChild(menuItem('ytr-menu-home', 'Home'));
+            content.appendChild(menuItem('ytr-menu-explore', 'Explore'));
+            content.appendChild(menuItem('ytr-menu-library', 'Library'));
+            content.appendChild(createEl('div', { className: 'ytr-divider' }));
+            content.appendChild(menuItem('ytr-menu-pip', 'Miniplayer', 'Ctrl Alt M'));
+            content.appendChild(menuItem('ytr-menu-eq', 'Audio settings', 'Ctrl Alt E'));
+            content.appendChild(menuItem('ytr-menu-reload', 'Reload', 'F5'));
+            content.appendChild(createEl('div', { className: 'ytr-divider' }));
+            content.appendChild(menuItem('ytr-menu-quit', 'Quit', null, 'ytr-danger'));
+            content.appendChild(createEl('div', { className: 'ytr-divider' }));
+            content.appendChild(createEl('a', {
+                className: 'ytr-menu-foot',
+                href: 'https://github.com/iAlturki/ytr-music',
                 target: '_blank',
-                className: 'ytr-badge-link',
-                title: 'ytr-music (iALTURKi Edition) - Visit GitHub'
-            });
-            const b1 = createEl('span', { style: 'color: #ff3d00; font-weight: 700;' }, 'ytr-music');
-            const b2 = createEl('span', { style: 'color: rgba(255,255,255,0.35);' }, ' \u2022 ');
-            const b3 = createEl('span', { style: 'color: #ffffff; font-weight: 500;' }, 'iALTURKi Edition \u00A9 2026');
-            badgeLink.appendChild(b1);
-            badgeLink.appendChild(b2);
-            badgeLink.appendChild(b3);
+                title: 'ytr-music on GitHub'
+            }, 'ytr-music \u2022 iALTURKi Edition'));
+            menu.appendChild(btnMore);
+            menu.appendChild(content);
 
-            const pipBtn = createEl('button', {
-                id: 'ytr-pip-btn',
-                className: 'ytr-pip-button',
-                title: 'Picture-in-Picture: Close window into floating desktop miniplayer'
-            });
-            const pipSvg = createSvg(13, 13, '0 0 24 24', [
-                { tag: 'path', attrs: { d: 'M19 11h-8v6h8v-6zm4 8V4.98C23 3.88 22.1 3 21 3H3c-1.1 0-2 .88-2 1.98V19c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2zm-2 .02H3V4.97h18v14.05z', fill: '#ff3d00' } }
-            ]);
-            const pipSpan = createEl('span', {}, 'Picture-in-Picture');
-            pipBtn.appendChild(pipSvg);
-            pipBtn.appendChild(pipSpan);
+            topbarRight.appendChild(btnAudio);
+            topbarRight.appendChild(btnPip);
+            topbarRight.appendChild(menu);
 
-            topbarRight.appendChild(badgeLink);
-            topbarRight.appendChild(pipBtn);
-
-            // Assemble into root bar
             bar.appendChild(topbarLeft);
             bar.appendChild(topbarCenter);
             bar.appendChild(topbarRight);
 
-            // Attach event listeners safely (immune to CSP inline script blocking)
-            bar.querySelector('#ytr-btn-back')?.addEventListener('click', () => window.history.back());
-            bar.querySelector('#ytr-btn-forward')?.addEventListener('click', () => window.history.forward());
-            bar.querySelector('#ytr-btn-reload')?.addEventListener('click', () => window.location.reload());
-            bar.querySelector('#ytr-btn-search')?.addEventListener('click', focusSearchBox);
+            // Listeners are attached in code (no inline handlers: Trusted Types / CSP).
+            const closeMenu = () => menu.classList.remove('ytr-menu-open');
+            btnMore.addEventListener('click', (e) => {
+                e.stopPropagation();
+                menu.classList.toggle('ytr-menu-open');
+            });
+            if (!topMenuDocListeners) {
+                // Registered once; looked up by id so a re-created bar is covered too.
+                topMenuDocListeners = true;
+                document.addEventListener('click', (e) => {
+                    const m = document.getElementById('ytr-more');
+                    if (m && !m.contains(e.target)) m.classList.remove('ytr-menu-open');
+                }, true);
+                document.addEventListener('keydown', (e) => {
+                    const m = document.getElementById('ytr-more');
+                    if (m && e.key === 'Escape') m.classList.remove('ytr-menu-open');
+                }, true);
+            }
+            const onItem = (id, fn) => {
+                const el = bar.querySelector('#' + id);
+                if (!el) return;
+                el.addEventListener('click', () => { closeMenu(); fn(); });
+                el.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); closeMenu(); fn(); }
+                });
+            };
 
-            bar.querySelector('#ytr-menu-pip')?.addEventListener('click', () => postToHost({ type: 'enter_pip' }));
-            bar.querySelector('#ytr-pip-btn')?.addEventListener('click', () => postToHost({ type: 'enter_pip' }));
-            bar.querySelector('#ytr-menu-quit')?.addEventListener('click', () => postToHost({ type: 'quit' }));
-
-            bar.querySelector('#ytr-menu-home')?.addEventListener('click', () => {
+            btnBack.addEventListener('click', () => window.history.back());
+            btnForward.addEventListener('click', () => window.history.forward());
+            btnSearch.addEventListener('click', focusSearchBox);
+            btnAudio.addEventListener('click', toggleEqualizerModal);
+            btnPip.addEventListener('click', () => postToHost({ type: 'enter_pip' }));
+            onItem('ytr-menu-pip', () => postToHost({ type: 'enter_pip' }));
+            onItem('ytr-menu-eq', toggleEqualizerModal);
+            onItem('ytr-menu-reload', () => window.location.reload());
+            onItem('ytr-menu-quit', () => postToHost({ type: 'quit' }));
+            onItem('ytr-menu-home', () => {
                 const el = document.querySelector('ytmusic-pivot-bar-item-renderer:nth-child(1), a[href="/"]');
                 if (el) el.click(); else window.location.href = '/';
             });
-            bar.querySelector('#ytr-menu-explore')?.addEventListener('click', () => {
+            onItem('ytr-menu-explore', () => {
                 const el = document.querySelector('ytmusic-pivot-bar-item-renderer:nth-child(2), a[href*="explore"]');
                 if (el) el.click(); else window.location.href = '/explore';
             });
-            bar.querySelector('#ytr-menu-library')?.addEventListener('click', () => {
+            onItem('ytr-menu-library', () => {
                 const el = document.querySelector('ytmusic-pivot-bar-item-renderer:nth-child(3), a[href*="library"]');
                 if (el) el.click(); else window.location.href = '/library';
             });
-
-            bar.querySelector('#ytr-menu-playpause')?.addEventListener('click', playerPlayPause);
-            bar.querySelector('#ytr-menu-next')?.addEventListener('click', playerNext);
-            bar.querySelector('#ytr-menu-prev')?.addEventListener('click', playerPrev);
-            bar.querySelector('#ytr-menu-like')?.addEventListener('click', () => {
-                const btn = document.querySelector('#like-button-renderer yt-button-shape button, .ytmusic-like-button-renderer button, ytmusic-like-button-renderer tp-yt-paper-icon-button');
-                if (btn) btn.click();
-            });
-
-            bar.querySelector('#ytr-btn-smooth')?.addEventListener('click', toggleSmoothAudio);
-            bar.querySelector('#ytr-menu-fade')?.addEventListener('click', toggleSmoothAudio);
-            bar.querySelector('#ytr-btn-eq')?.addEventListener('click', toggleEqualizerModal);
-            bar.querySelector('#ytr-menu-eq')?.addEventListener('click', toggleEqualizerModal);
 
             document.body.prepend(bar);
             // The UI sync looks its elements up by id, so it only works once the bar is in the document.
@@ -2429,6 +2592,7 @@
     window.__ytr_init = initBridge;
 
     try {
+        document.addEventListener('click', onNativeControlClick, true);
         document.addEventListener('play', onMediaPlay, true);
         document.addEventListener('playing', onMediaPlaying, true);
         document.addEventListener('pause', onMediaPause, true);
