@@ -1,2 +1,12 @@
 * text=auto eol=lf
-*.js text
+
+# cmd.exe mis-parses labels and multi-line blocks in LF-only batch files
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+*.png binary
+*.gif binary
+*.ico binary
+*.dll binary
+*.exe binary
+*.lib binary

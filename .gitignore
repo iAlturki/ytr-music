@@ -1,22 +1,16 @@
-node_modules
-/dist
-/pack
-.vscode/settings.json
-.idea
-
-.pnp.*
-.pnpm-store
-.yarn/*
-!.yarn/patches
-!.yarn/plugins
-!.yarn/releases
-!.yarn/sdks
-!.yarn/versions
-.vite-inspect
-
-.DS_Store
-
 # Native build outputs
 /native/bin
 /native/res/*.o
+*.o
 
+# Local leftovers from the retired Electron client (kept out of the index)
+node_modules
+/dist
+/pack
+.vite-inspect
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
