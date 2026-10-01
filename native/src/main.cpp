@@ -116,17 +116,20 @@ static LRESULT CALLBACK MsgWndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lP
 }
 
 int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int nCmdShow) {
+    LogBridge(L"wWinMain started");
     // Set AppUserModelID for seamless Windows Taskbar pinning and grouping
     SetCurrentProcessExplicitAppUserModelID(L"com.github.iAlturki.ytr-music");
 
     // 1. Single-Instance Mutex & Process Management
     HANDLE hMutex = CreateMutexW(NULL, TRUE, L"YTRMusicNativeSingleInstanceMutex");
     if (GetLastError() == ERROR_ALREADY_EXISTS) {
+        LogBridge(L"SingleInstanceMutex already exists! Exiting.");
         UINT msgShow = RegisterWindowMessageW(L"YTR_MUSIC_SHOW_INSTANCE");
         PostMessageW(HWND_BROADCAST, msgShow, 0, 0);
         if (hMutex) CloseHandle(hMutex);
         return 0;
     }
+    LogBridge(L"Mutex acquired");
 
     CoInitializeEx(NULL, COINIT_APARTMENTTHREADED);
 

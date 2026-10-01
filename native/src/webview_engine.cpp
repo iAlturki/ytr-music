@@ -190,10 +190,7 @@ bool WebViewEngine::Initialize(HWND hWndContainer, std::function<void()> onIniti
                     EventRegistrationToken navToken;
                     auto navHandler = new CoreNavigationCompletedHandler(
                         [this](ICoreWebView2* sender, ICoreWebView2NavigationCompletedEventArgs* args) -> HRESULT {
-                            LogBridge(L"NavigationCompleted fired! Directly executing bridge script.");
-                            if (!m_bridgeScript.empty()) {
-                                ExecuteScript(m_bridgeScript);
-                            }
+                            ExecuteScript(L"if (typeof window.__ytr_recheck === 'function') { window.__ytr_recheck(); }");
                             return S_OK;
                         }
                     );
@@ -258,6 +255,11 @@ void WebViewEngine::SetupInjectedBridge() {
     std::wstring script = LR"JS(
 (function() {
     console.log('[ytr-native] Injected bridge loading...');
+    if (window.__ytr_bridge_installed) {
+        if (typeof window.__ytr_recheck === 'function') window.__ytr_recheck();
+        return;
+    }
+    window.__ytr_bridge_installed = true;
 
     // 0. High-Performance Innertube / Player Ad Stripper (Intercepts API responses before YouTube parses them)
     function sanitizeAdObject(obj, visited = new WeakSet()) {
@@ -1027,28 +1029,34 @@ void WebViewEngine::SetupInjectedBridge() {
         'Flat':        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
     };
 
-    let eqMasterEnabled = localStorage.getItem('ytr_eq_enabled') !== 'false';
-    let currentPresetName = localStorage.getItem('ytr_eq_preset') || 'Dolby Atmos';
-    let currentGains = null;
-    try {
-        const saved = localStorage.getItem('ytr_eq_gains');
-        if (saved) currentGains = JSON.parse(saved);
-    } catch (_) {}
-    if (!Array.isArray(currentGains) || currentGains.length !== 10) {
-        currentGains = DOLBY_PRESETS[currentPresetName] ? [...DOLBY_PRESETS[currentPresetName]] : [...DOLBY_PRESETS['Dolby Atmos']];
-    }
+    window.__ytr_audio = window.__ytr_audio || {
+        ctx: null,
+        source: null,
+        filters: [],
+        fadeGain: null,
+        video: null,
+        masterEnabled: localStorage.getItem('ytr_eq_enabled') !== 'false',
+        presetName: localStorage.getItem('ytr_eq_preset') || 'Dolby Atmos',
+        gains: null
+    };
 
-    let audioCtx = null;
-    let audioSourceNode = null;
-    let eqFilterNodes = [];
-    let fadeGainNode = null;
-    let lastConnectedVideo = null;
+    const A = window.__ytr_audio;
+    if (!A.gains) {
+        try {
+            const saved = localStorage.getItem('ytr_eq_gains');
+            if (saved) A.gains = JSON.parse(saved);
+        } catch (_) {}
+        if (!Array.isArray(A.gains) || A.gains.length !== 10) {
+            A.gains = DOLBY_PRESETS[A.presetName] ? [...DOLBY_PRESETS[A.presetName]] : [...DOLBY_PRESETS['Dolby Atmos']];
+        }
+    }
 
     function initAudioGraph(video) {
         if (!video) return;
-        if (lastConnectedVideo === video && audioCtx) {
-            if (audioCtx.state === 'suspended') {
-                audioCtx.resume().catch(() => {});
+        const A = window.__ytr_audio;
+        if (A.video === video && A.ctx && A.filters && A.filters.length === 10) {
+            if (A.ctx.state === 'suspended') {
+                A.ctx.resume().catch(() => {});
             }
             return;
         }
@@ -1057,52 +1065,56 @@ void WebViewEngine::SetupInjectedBridge() {
             const AudioContextClass = window.AudioContext || window.webkitAudioContext;
             if (!AudioContextClass) return;
 
-            if (!audioCtx) {
-                audioCtx = new AudioContextClass();
+            if (!A.ctx) {
+                A.ctx = new AudioContextClass();
             }
 
-            if (lastConnectedVideo !== video) {
-                audioSourceNode = audioCtx.createMediaElementSource(video);
-                lastConnectedVideo = video;
+            if (A.video !== video) {
+                try {
+                    A.source = A.ctx.createMediaElementSource(video);
+                    A.video = video;
 
-                // Build 10-Band Biquad Filter chain
-                eqFilterNodes = [];
-                for (let i = 0; i < EQ_FREQUENCIES.length; i++) {
-                    const freq = EQ_FREQUENCIES[i];
-                    const filter = audioCtx.createBiquadFilter();
-                    if (i === 0) {
-                        filter.type = 'lowshelf';
-                    } else if (i === EQ_FREQUENCIES.length - 1) {
-                        filter.type = 'highshelf';
-                    } else {
-                        filter.type = 'peaking';
-                        filter.Q.value = 1.4;
+                    // Build 10-Band Biquad Filter chain
+                    A.filters = [];
+                    for (let i = 0; i < EQ_FREQUENCIES.length; i++) {
+                        const freq = EQ_FREQUENCIES[i];
+                        const filter = A.ctx.createBiquadFilter();
+                        if (i === 0) {
+                            filter.type = 'lowshelf';
+                        } else if (i === EQ_FREQUENCIES.length - 1) {
+                            filter.type = 'highshelf';
+                        } else {
+                            filter.type = 'peaking';
+                            filter.Q.value = 1.4;
+                        }
+                        filter.frequency.value = freq;
+                        filter.gain.value = A.masterEnabled ? A.gains[i] : 0.0;
+                        A.filters.push(filter);
                     }
-                    filter.frequency.value = freq;
-                    filter.gain.value = eqMasterEnabled ? currentGains[i] : 0.0;
-                    eqFilterNodes.push(filter);
+
+                    // Dedicated GainNode for Smooth Audio Fading
+                    A.fadeGain = A.ctx.createGain();
+                    A.fadeGain.gain.value = 1.0;
+
+                    // Chain: Source -> Filter[0] -> ... -> Filter[9] -> FadeGain -> Destination
+                    let prev = A.source;
+                    for (let i = 0; i < A.filters.length; i++) {
+                        prev.connect(A.filters[i]);
+                        prev = A.filters[i];
+                    }
+                    prev.connect(A.fadeGain);
+                    A.fadeGain.connect(A.ctx.destination);
+
+                    window.__ytr_audioCtx = A.ctx;
+                    window.__ytr_eqFilters = A.filters;
+                    window.__ytr_fadeGain = A.fadeGain;
+                } catch (err) {
+                    console.warn('[ytr-audio] createMediaElementSource warning:', err);
                 }
-
-                // Dedicated GainNode for Smooth Audio Fading (never touches video.volume)
-                fadeGainNode = audioCtx.createGain();
-                fadeGainNode.gain.value = 1.0;
-
-                // Chain: Source -> Filter[0] -> ... -> Filter[9] -> FadeGain -> Destination
-                let prev = audioSourceNode;
-                for (let i = 0; i < eqFilterNodes.length; i++) {
-                    prev.connect(eqFilterNodes[i]);
-                    prev = eqFilterNodes[i];
-                }
-                prev.connect(fadeGainNode);
-                fadeGainNode.connect(audioCtx.destination);
-
-                window.__ytr_audioCtx = audioCtx;
-                window.__ytr_eqFilters = eqFilterNodes;
-                window.__ytr_fadeGain = fadeGainNode;
             }
 
-            if (audioCtx.state === 'suspended') {
-                audioCtx.resume().catch(() => {});
+            if (A.ctx.state === 'suspended') {
+                A.ctx.resume().catch(() => {});
             }
         } catch (e) {
             console.warn('[ytr-audio] initAudioGraph error:', e);
@@ -1110,21 +1122,24 @@ void WebViewEngine::SetupInjectedBridge() {
     }
 
     function applyEqGains(gains, presetName) {
-        currentGains = [...gains];
-        if (presetName) currentPresetName = presetName;
-        localStorage.setItem('ytr_eq_gains', JSON.stringify(currentGains));
-        if (presetName) localStorage.setItem('ytr_eq_preset', currentPresetName);
+        const A = window.__ytr_audio;
+        A.gains = [...gains];
+        if (presetName) A.presetName = presetName;
+        localStorage.setItem('ytr_eq_gains', JSON.stringify(A.gains));
+        if (presetName) localStorage.setItem('ytr_eq_preset', A.presetName);
 
-        if (audioCtx && eqFilterNodes.length === 10) {
-            const now = audioCtx.currentTime;
+        const filters = A.filters || window.__ytr_eqFilters;
+        const actx = A.ctx || window.__ytr_audioCtx;
+        if (actx && filters && filters.length === 10) {
+            const now = actx.currentTime;
             for (let i = 0; i < 10; i++) {
-                const target = eqMasterEnabled ? currentGains[i] : 0.0;
+                const target = A.masterEnabled ? A.gains[i] : 0.0;
                 try {
-                    eqFilterNodes[i].gain.cancelScheduledValues(now);
-                    eqFilterNodes[i].gain.setValueAtTime(eqFilterNodes[i].gain.value, now);
-                    eqFilterNodes[i].gain.linearRampToValueAtTime(target, now + 0.05);
+                    filters[i].gain.cancelScheduledValues(now);
+                    filters[i].gain.setValueAtTime(filters[i].gain.value, now);
+                    filters[i].gain.linearRampToValueAtTime(target, now + 0.05);
                 } catch (_) {
-                    eqFilterNodes[i].gain.value = target;
+                    filters[i].gain.value = target;
                 }
             }
         }
@@ -1133,48 +1148,51 @@ void WebViewEngine::SetupInjectedBridge() {
     }
 
     function setEqMasterEnabled(enabled) {
-        eqMasterEnabled = enabled;
+        const A = window.__ytr_audio;
+        A.masterEnabled = enabled;
         localStorage.setItem('ytr_eq_enabled', enabled ? 'true' : 'false');
-        applyEqGains(currentGains, currentPresetName);
+        applyEqGains(A.gains, A.presetName);
         updateEqualizerModalUI();
         updateEqButtonUI();
     }
 
     function updateEqButtonUI() {
+        const A = window.__ytr_audio;
         const btn = document.getElementById('ytr-btn-eq');
         const text = document.getElementById('ytr-btn-eq-text');
         if (!btn) return;
-        const targetBg = eqMasterEnabled ? 'rgba(255, 61, 0, 0.18)' : 'rgba(255, 255, 255, 0.06)';
+        const targetBg = A.masterEnabled ? 'rgba(255, 61, 0, 0.18)' : 'rgba(255, 255, 255, 0.06)';
         btn.style.background = targetBg;
-        btn.style.borderColor = eqMasterEnabled ? 'rgba(255, 61, 0, 0.45)' : 'rgba(255, 255, 255, 0.1)';
-        btn.style.color = eqMasterEnabled ? '#ff5722' : '#d1d1d1';
+        btn.style.borderColor = A.masterEnabled ? 'rgba(255, 61, 0, 0.45)' : 'rgba(255, 255, 255, 0.1)';
+        btn.style.color = A.masterEnabled ? '#ff5722' : '#d1d1d1';
         if (text) {
-            text.textContent = eqMasterEnabled ? `EQ (${currentPresetName})` : 'EQ: OFF';
+            text.textContent = A.masterEnabled ? `EQ (${A.presetName})` : 'EQ: OFF';
         }
     }
 
     function updateEqualizerModalUI() {
+        const A = window.__ytr_audio;
         const badge = document.getElementById('ytr-eq-preset-badge');
-        if (badge) badge.textContent = currentPresetName;
+        if (badge) badge.textContent = A.presetName;
 
         const toggleBtn = document.getElementById('ytr-eq-master-toggle');
         if (toggleBtn) {
-            toggleBtn.textContent = eqMasterEnabled ? '\u2713 EQ: ON' : '\u25CB EQ: OFF';
-            if (eqMasterEnabled) toggleBtn.classList.add('ytr-active');
+            toggleBtn.textContent = A.masterEnabled ? '\u2713 EQ: ON' : '\u25CB EQ: OFF';
+            if (A.masterEnabled) toggleBtn.classList.add('ytr-active');
             else toggleBtn.classList.remove('ytr-active');
         }
 
         const chips = document.querySelectorAll('.ytr-eq-preset-chip');
         chips.forEach(chip => {
             const pName = chip.getAttribute('data-preset');
-            if (pName === currentPresetName) chip.classList.add('ytr-selected');
+            if (pName === A.presetName) chip.classList.add('ytr-selected');
             else chip.classList.remove('ytr-selected');
         });
 
         for (let i = 0; i < 10; i++) {
             const slider = document.getElementById(`ytr-eq-slider-${i}`);
             const dbText = document.getElementById(`ytr-eq-db-${i}`);
-            const val = currentGains[i];
+            const val = A.gains[i];
             if (slider && parseFloat(slider.value) !== val) {
                 slider.value = String(val);
             }
@@ -1201,6 +1219,7 @@ void WebViewEngine::SetupInjectedBridge() {
         let overlay = document.getElementById('ytr-eq-overlay');
         if (overlay) return overlay;
 
+        const A = window.__ytr_audio;
         overlay = createEl('div', { id: 'ytr-eq-overlay' });
         const modal = createEl('div', { id: 'ytr-eq-modal' });
 
@@ -1213,18 +1232,18 @@ void WebViewEngine::SetupInjectedBridge() {
         const titleSpan = createEl('span', { className: 'ytr-eq-title' });
         titleSpan.appendChild(titleSvg);
         titleSpan.appendChild(document.createTextNode('Dolby Audio Equalizer'));
-        const badge = createEl('span', { id: 'ytr-eq-preset-badge', className: 'ytr-eq-badge' }, currentPresetName);
+        const badge = createEl('span', { id: 'ytr-eq-preset-badge', className: 'ytr-eq-badge' }, A.presetName);
         titleGrp.appendChild(titleSpan);
         titleGrp.appendChild(badge);
 
         const actions = createEl('div', { className: 'ytr-eq-header-actions' });
         const toggleBtn = createEl('button', {
             id: 'ytr-eq-master-toggle',
-            className: 'ytr-eq-toggle-btn' + (eqMasterEnabled ? ' ytr-active' : ''),
+            className: 'ytr-eq-toggle-btn' + (A.masterEnabled ? ' ytr-active' : ''),
             title: 'Master Equalizer Toggle'
-        }, eqMasterEnabled ? '\u2713 EQ: ON' : '\u25CB EQ: OFF');
+        }, A.masterEnabled ? '\u2713 EQ: ON' : '\u25CB EQ: OFF');
         toggleBtn.addEventListener('click', () => {
-            setEqMasterEnabled(!eqMasterEnabled);
+            setEqMasterEnabled(!window.__ytr_audio.masterEnabled);
         });
 
         const closeBtn = createEl('button', { className: 'ytr-eq-close-btn', title: 'Close (Esc)' }, '\u2715');
@@ -1243,7 +1262,7 @@ void WebViewEngine::SetupInjectedBridge() {
 
         for (const pName in DOLBY_PRESETS) {
             const chip = createEl('button', {
-                className: 'ytr-eq-preset-chip' + (pName === currentPresetName ? ' ytr-selected' : ''),
+                className: 'ytr-eq-preset-chip' + (pName === A.presetName ? ' ytr-selected' : ''),
                 'data-preset': pName
             }, pName);
             chip.addEventListener('click', () => {
@@ -1258,7 +1277,7 @@ void WebViewEngine::SetupInjectedBridge() {
         const slidersBox = createEl('div', { className: 'ytr-eq-sliders-box' });
         for (let i = 0; i < 10; i++) {
             const col = createEl('div', { className: 'ytr-eq-col' });
-            const val = currentGains[i];
+            const val = A.gains[i];
             const dbText = createEl('span', { id: `ytr-eq-db-${i}`, className: 'ytr-eq-db' }, (val > 0 ? '+' : '') + val + ' dB');
             const slider = createEl('input', {
                 id: `ytr-eq-slider-${i}`,
@@ -1272,7 +1291,7 @@ void WebViewEngine::SetupInjectedBridge() {
                 title: `${EQ_FREQ_LABELS[i]}Hz (${val} dB)`
             });
             slider.addEventListener('input', (e) => {
-                const newGains = [...currentGains];
+                const newGains = [...window.__ytr_audio.gains];
                 newGains[i] = parseFloat(e.target.value);
                 applyEqGains(newGains, 'Custom');
             });
@@ -1309,10 +1328,8 @@ void WebViewEngine::SetupInjectedBridge() {
         return overlay;
     }
 
-    // --- Studio-Grade Smooth Audio Fading Engine ---
+    // --- Studio-Grade Smooth Audio Transitions & Playback Control ---
     let smoothAudioEnabled = localStorage.getItem('ytr_smooth_audio') === 'true';
-    let isActionBypassed = false;
-    let shouldFadeInNextTrack = false;
 
     function updateSmoothAudioUI() {
         try {
@@ -1345,134 +1362,98 @@ void WebViewEngine::SetupInjectedBridge() {
         } catch (_) {}
     }
 
-    function smoothTogglePlayPause() {
-        const video = document.querySelector('video');
-        const playBtn = document.querySelector('#play-pause-button, .play-pause-button');
-        const player = document.querySelector('#movie_player');
+    function playerPlayPause() {
+        const mp = document.querySelector('#movie_player');
+        const v = document.querySelector('video');
+        const A = window.__ytr_audio;
 
-        function triggerNativePlayPause() {
-            isActionBypassed = true;
-            try {
-                if (playBtn) {
-                    playBtn.click();
-                } else if (player && typeof player.getPlayerState === 'function') {
-                    if (player.getPlayerState() === 1) player.pauseVideo();
-                    else player.playVideo();
-                } else if (video) {
-                    video.paused ? video.play() : video.pause();
+        if (mp && typeof mp.getPlayerState === 'function') {
+            const state = mp.getPlayerState(); // 1 = playing, 2 = paused
+            if (state === 1) { // playing -> pause
+                if (smoothAudioEnabled && A && A.ctx && A.fadeGain) {
+                    const now = A.ctx.currentTime;
+                    A.fadeGain.gain.cancelScheduledValues(now);
+                    A.fadeGain.gain.setValueAtTime(A.fadeGain.gain.value, now);
+                    A.fadeGain.gain.linearRampToValueAtTime(0.001, now + 0.16);
+                    setTimeout(() => {
+                        try { mp.pauseVideo(); } catch (_) {}
+                        if (A.ctx && A.fadeGain) A.fadeGain.gain.setValueAtTime(1.0, A.ctx.currentTime);
+                    }, 170);
+                } else {
+                    mp.pauseVideo();
                 }
-            } finally {
-                setTimeout(() => { isActionBypassed = false; }, 300);
+            } else { // paused -> play
+                if (smoothAudioEnabled && A && A.ctx && A.fadeGain) {
+                    const now = A.ctx.currentTime;
+                    A.fadeGain.gain.cancelScheduledValues(now);
+                    A.fadeGain.gain.setValueAtTime(0.001, now);
+                    mp.playVideo();
+                    A.fadeGain.gain.linearRampToValueAtTime(1.0, now + 0.20);
+                } else {
+                    mp.playVideo();
+                }
             }
+        } else if (v) {
+            v.paused ? v.play() : v.pause();
         }
+    }
 
-        if (!video || !smoothAudioEnabled || !audioCtx || !fadeGainNode) {
-            triggerNativePlayPause();
-            return;
-        }
-
-        if (audioCtx.state === 'suspended') {
-            audioCtx.resume().catch(() => {});
-        }
-
-        if (video.paused) {
-            // Smooth Resume: set gain to 0, start playing, ramp gain up to 1.0 in 220ms
-            const now = audioCtx.currentTime;
-            fadeGainNode.gain.cancelScheduledValues(now);
-            fadeGainNode.gain.setValueAtTime(0.001, now);
-            triggerNativePlayPause();
-            fadeGainNode.gain.linearRampToValueAtTime(1.0, now + 0.22);
-        } else {
-            // Smooth Pause: ramp gain down from 1.0 to 0.001 in 180ms, then pause and reset gain to 1.0
-            const now = audioCtx.currentTime;
-            fadeGainNode.gain.cancelScheduledValues(now);
-            fadeGainNode.gain.setValueAtTime(fadeGainNode.gain.value, now);
-            fadeGainNode.gain.linearRampToValueAtTime(0.001, now + 0.18);
+    function playerNext() {
+        const mp = document.querySelector('#movie_player');
+        const A = window.__ytr_audio;
+        if (smoothAudioEnabled && A && A.ctx && A.fadeGain) {
+            const now = A.ctx.currentTime;
+            A.fadeGain.gain.cancelScheduledValues(now);
+            A.fadeGain.gain.setValueAtTime(A.fadeGain.gain.value, now);
+            A.fadeGain.gain.linearRampToValueAtTime(0.001, now + 0.14);
             setTimeout(() => {
-                triggerNativePlayPause();
-                if (audioCtx && fadeGainNode) {
-                    const t = audioCtx.currentTime;
-                    fadeGainNode.gain.setValueAtTime(1.0, t);
+                if (mp && typeof mp.nextVideo === 'function') mp.nextVideo();
+                else {
+                    const btn = document.querySelector('.next-button.ytmusic-player-bar, #next-button');
+                    if (btn) btn.click();
                 }
-            }, 190);
+                if (A.ctx && A.fadeGain) A.fadeGain.gain.setValueAtTime(1.0, A.ctx.currentTime);
+            }, 150);
+        } else {
+            if (mp && typeof mp.nextVideo === 'function') mp.nextVideo();
+            else {
+                const btn = document.querySelector('.next-button.ytmusic-player-bar, #next-button');
+                if (btn) btn.click();
+            }
         }
     }
 
-    function smoothNextTrack() {
-        const video = document.querySelector('video');
-        const nextBtn = document.querySelector('.next-button.ytmusic-player-bar, #next-button, button.next-button');
-        const player = document.querySelector('#movie_player');
-
-        function triggerNativeNext() {
-            isActionBypassed = true;
-            try {
-                if (player && typeof player.nextVideo === 'function') {
-                    player.nextVideo();
-                } else if (nextBtn) {
-                    nextBtn.click();
+    function playerPrev() {
+        const mp = document.querySelector('#movie_player');
+        const A = window.__ytr_audio;
+        if (smoothAudioEnabled && A && A.ctx && A.fadeGain) {
+            const now = A.ctx.currentTime;
+            A.fadeGain.gain.cancelScheduledValues(now);
+            A.fadeGain.gain.setValueAtTime(A.fadeGain.gain.value, now);
+            A.fadeGain.gain.linearRampToValueAtTime(0.001, now + 0.14);
+            setTimeout(() => {
+                if (mp && typeof mp.previousVideo === 'function') mp.previousVideo();
+                else {
+                    const btn = document.querySelector('.previous-button.ytmusic-player-bar, #previous-button');
+                    if (btn) btn.click();
                 }
-            } finally {
-                setTimeout(() => { isActionBypassed = false; }, 300);
+                if (A.ctx && A.fadeGain) A.fadeGain.gain.setValueAtTime(1.0, A.ctx.currentTime);
+            }, 150);
+        } else {
+            if (mp && typeof mp.previousVideo === 'function') mp.previousVideo();
+            else {
+                const btn = document.querySelector('.previous-button.ytmusic-player-bar, #previous-button');
+                if (btn) btn.click();
             }
         }
-
-        if (!smoothAudioEnabled || !video || video.paused || !audioCtx || !fadeGainNode) {
-            triggerNativeNext();
-            return;
-        }
-
-        shouldFadeInNextTrack = true;
-        const now = audioCtx.currentTime;
-        fadeGainNode.gain.cancelScheduledValues(now);
-        fadeGainNode.gain.setValueAtTime(fadeGainNode.gain.value, now);
-        fadeGainNode.gain.linearRampToValueAtTime(0.001, now + 0.16);
-        setTimeout(() => {
-            triggerNativeNext();
-            if (audioCtx && fadeGainNode) {
-                fadeGainNode.gain.setValueAtTime(1.0, audioCtx.currentTime);
-            }
-        }, 170);
     }
 
-    function smoothPrevTrack() {
-        const video = document.querySelector('video');
-        const prevBtn = document.querySelector('.previous-button.ytmusic-player-bar, #previous-button, button.previous-button');
-        const player = document.querySelector('#movie_player');
-
-        function triggerNativePrev() {
-            isActionBypassed = true;
-            try {
-                if (player && typeof player.previousVideo === 'function') {
-                    player.previousVideo();
-                } else if (prevBtn) {
-                    prevBtn.click();
-                }
-            } finally {
-                setTimeout(() => { isActionBypassed = false; }, 300);
-            }
-        }
-
-        if (!smoothAudioEnabled || !video || video.paused || !audioCtx || !fadeGainNode) {
-            triggerNativePrev();
-            return;
-        }
-
-        shouldFadeInNextTrack = true;
-        const now = audioCtx.currentTime;
-        fadeGainNode.gain.cancelScheduledValues(now);
-        fadeGainNode.gain.setValueAtTime(fadeGainNode.gain.value, now);
-        fadeGainNode.gain.linearRampToValueAtTime(0.001, now + 0.16);
-        setTimeout(() => {
-            triggerNativePrev();
-            if (audioCtx && fadeGainNode) {
-                fadeGainNode.gain.setValueAtTime(1.0, audioCtx.currentTime);
-            }
-        }, 170);
-    }
-
-    window.__ytr_smoothToggle = smoothTogglePlayPause;
-    window.__ytr_smoothNext = smoothNextTrack;
-    window.__ytr_smoothPrev = smoothPrevTrack;
+    window.__ytr_playerPlayPause = playerPlayPause;
+    window.__ytr_playerNext = playerNext;
+    window.__ytr_playerPrev = playerPrev;
+    window.__ytr_smoothToggle = playerPlayPause;
+    window.__ytr_smoothNext = playerNext;
+    window.__ytr_smoothPrev = playerPrev;
     window.__ytr_toggleEqualizer = toggleEqualizerModal;
     window.__ytr_setEqMaster = setEqMasterEnabled;
     window.__ytr_applyPreset = (p) => applyEqGains(DOLBY_PRESETS[p] || DOLBY_PRESETS['Flat'], p);
@@ -1674,15 +1655,9 @@ void WebViewEngine::SetupInjectedBridge() {
                 if (el) el.click(); else window.location.href = '/library';
             });
 
-            bar.querySelector('#ytr-menu-playpause')?.addEventListener('click', () => {
-                smoothTogglePlayPause();
-            });
-            bar.querySelector('#ytr-menu-next')?.addEventListener('click', () => {
-                smoothNextTrack();
-            });
-            bar.querySelector('#ytr-menu-prev')?.addEventListener('click', () => {
-                smoothPrevTrack();
-            });
+            bar.querySelector('#ytr-menu-playpause')?.addEventListener('click', playerPlayPause);
+            bar.querySelector('#ytr-menu-next')?.addEventListener('click', playerNext);
+            bar.querySelector('#ytr-menu-prev')?.addEventListener('click', playerPrev);
             bar.querySelector('#ytr-menu-like')?.addEventListener('click', () => {
                 const btn = document.querySelector('#like-button-renderer yt-button-shape button, .ytmusic-like-button-renderer button, ytmusic-like-button-renderer tp-yt-paper-icon-button');
                 if (btn) btn.click();
@@ -1839,8 +1814,9 @@ void WebViewEngine::SetupInjectedBridge() {
 
         try {
             const unlockAudio = () => {
-                if (audioCtx && audioCtx.state === 'suspended') {
-                    audioCtx.resume().catch(() => {});
+                const ctx = window.__ytr_audio && window.__ytr_audio.ctx;
+                if (ctx && ctx.state === 'suspended') {
+                    ctx.resume().catch(() => {});
                 }
             };
             window.addEventListener('click', unlockAudio, true);
@@ -1850,12 +1826,12 @@ void WebViewEngine::SetupInjectedBridge() {
                 const video = document.querySelector('video');
                 if (video) initAudioGraph(video);
                 unlockAudio();
-                if (smoothAudioEnabled && shouldFadeInNextTrack && audioCtx && fadeGainNode) {
-                    shouldFadeInNextTrack = false;
-                    const now = audioCtx.currentTime;
-                    fadeGainNode.gain.cancelScheduledValues(now);
-                    fadeGainNode.gain.setValueAtTime(0.001, now);
-                    fadeGainNode.gain.linearRampToValueAtTime(1.0, now + 0.22);
+                const A = window.__ytr_audio;
+                if (smoothAudioEnabled && A && A.ctx && A.fadeGain) {
+                    const now = A.ctx.currentTime;
+                    A.fadeGain.gain.cancelScheduledValues(now);
+                    A.fadeGain.gain.setValueAtTime(0.001, now);
+                    A.fadeGain.gain.linearRampToValueAtTime(1.0, now + 0.20);
                 }
                 sendState(true);
             }, true);
@@ -1892,52 +1868,25 @@ void WebViewEngine::SetupInjectedBridge() {
                     focusSearchBox();
                     return;
                 }
-                if ((e.code === 'Space' || e.key === ' ') && !isEditing && smoothAudioEnabled) {
+                if ((e.code === 'Space' || e.key === ' ') && !isEditing) {
                     e.preventDefault();
-                    smoothTogglePlayPause();
+                    playerPlayPause();
                     return;
-                }
-            }, true);
-
-            document.addEventListener('click', (e) => {
-                if (isActionBypassed || !smoothAudioEnabled) return;
-                const path = e.composedPath();
-                const isPlayBtn = path.some(el => el instanceof HTMLElement && (
-                    el.id === 'play-pause-button' || el.classList?.contains('play-pause-button')
-                ));
-                if (isPlayBtn) {
-                    e.preventDefault();
-                    e.stopImmediatePropagation();
-                    smoothTogglePlayPause();
-                    return;
-                }
-                const isNextBtn = path.some(el => el instanceof HTMLElement && (
-                    el.classList?.contains('next-button') || el.id === 'next-button'
-                ));
-                if (isNextBtn) {
-                    const video = document.querySelector('video');
-                    if (video && !video.paused) {
-                        e.preventDefault();
-                        e.stopImmediatePropagation();
-                        smoothNextTrack();
-                        return;
-                    }
-                }
-                const isPrevBtn = path.some(el => el instanceof HTMLElement && (
-                    el.classList?.contains('previous-button') || el.id === 'previous-button'
-                ));
-                if (isPrevBtn) {
-                    const video = document.querySelector('video');
-                    if (video && !video.paused) {
-                        e.preventDefault();
-                        e.stopImmediatePropagation();
-                        smoothPrevTrack();
-                        return;
-                    }
                 }
             }, true);
         } catch (_) {}
     }
+
+    function recheck() {
+        try {
+            ensureStyles();
+            neutralizeAds();
+            installTopBarUI();
+            const v = document.querySelector('video');
+            if (v) initAudioGraph(v);
+        } catch (_) {}
+    }
+    window.__ytr_recheck = recheck;
 
     window.__ytr_init = initBridge;
 
@@ -2006,53 +1955,44 @@ void WebViewEngine::SendControl(const std::wstring& action) {
     if (action == L"playPause") {
         ExecuteScript(LR"JS(
             (function() {
-                if (typeof window.__ytr_smoothToggle === 'function') {
-                    window.__ytr_smoothToggle();
-                    return;
-                }
-                const btn = document.querySelector('#play-pause-button, .play-pause-button');
-                if (btn) {
-                    btn.click();
+                if (typeof window.__ytr_playerPlayPause === 'function') {
+                    window.__ytr_playerPlayPause();
                     return;
                 }
                 const mp = document.querySelector('#movie_player');
                 if (mp && typeof mp.getPlayerState === 'function') {
-                    if (mp.getPlayerState() === 1) {
-                        if (typeof mp.pauseVideo === 'function') { mp.pauseVideo(); return; }
-                    } else {
-                        if (typeof mp.playVideo === 'function') { mp.playVideo(); return; }
-                    }
+                    if (mp.getPlayerState() === 1) mp.pauseVideo();
+                    else mp.playVideo();
+                    return;
                 }
                 const v = document.querySelector('video');
-                if (v) {
-                    v.paused ? v.play() : v.pause();
-                }
+                if (v) v.paused ? v.play() : v.pause();
             })();
         )JS");
     } else if (action == L"next") {
         ExecuteScript(LR"JS(
             (function() {
-                if (typeof window.__ytr_smoothNext === 'function') {
-                    window.__ytr_smoothNext();
+                if (typeof window.__ytr_playerNext === 'function') {
+                    window.__ytr_playerNext();
                     return;
                 }
-                const btn = document.querySelector('.next-button.ytmusic-player-bar, #next-button, button.next-button');
-                if (btn) { btn.click(); return; }
                 const mp = document.querySelector('#movie_player');
                 if (mp && typeof mp.nextVideo === 'function') { mp.nextVideo(); return; }
+                const btn = document.querySelector('.next-button.ytmusic-player-bar, #next-button, button.next-button');
+                if (btn) btn.click();
             })();
         )JS");
     } else if (action == L"previous") {
         ExecuteScript(LR"JS(
             (function() {
-                if (typeof window.__ytr_smoothPrev === 'function') {
-                    window.__ytr_smoothPrev();
+                if (typeof window.__ytr_playerPrev === 'function') {
+                    window.__ytr_playerPrev();
                     return;
                 }
-                const btn = document.querySelector('.previous-button.ytmusic-player-bar, #previous-button, button.previous-button');
-                if (btn) { btn.click(); return; }
                 const mp = document.querySelector('#movie_player');
                 if (mp && typeof mp.previousVideo === 'function') { mp.previousVideo(); return; }
+                const btn = document.querySelector('.previous-button.ytmusic-player-bar, #previous-button, button.previous-button');
+                if (btn) btn.click();
             })();
         )JS");
     } else if (action == L"like") {
@@ -2075,7 +2015,11 @@ void WebViewEngine::SendControl(const std::wstring& action) {
 
 void WebViewEngine::SeekTo(double seconds) {
     std::wstringstream ss;
-    ss << L"const v = document.querySelector('video'); if (v) { v.currentTime = " << seconds << L"; }";
+    ss << L"(function() { "
+          L"const mp = document.querySelector('#movie_player'); "
+          L"if (mp && typeof mp.seekTo === 'function') { mp.seekTo(" << seconds << L", true); } "
+          L"else { const v = document.querySelector('video'); if (v) { v.currentTime = " << seconds << L"; } } "
+          L"})();";
     ExecuteScript(ss.str());
 }
 

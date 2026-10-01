@@ -278,9 +278,13 @@ void MiniplayerWindow::HandleMouseMove(int x, int y) {
         m_isHovered = true;
     }
     if (m_isDraggingVolume) {
-        int vol = (int)(((float)(x - 36) / 48.0f) * 100.0f + 0.5f);
+        float pct = (float)(x - 36) / 48.0f;
+        if (pct < 0.0f) pct = 0.0f;
+        if (pct > 1.0f) pct = 1.0f;
+        int vol = (int)(pct * 100.0f + 0.5f);
         if (vol < 0) vol = 0;
         if (vol > 100) vol = 100;
+        if (vol > 0) m_lastNonZeroVolume = vol;
         if (vol != g_currentSong.volume) {
             g_currentSong.volume = vol;
             App_SetVolume(vol);
@@ -314,24 +318,28 @@ void MiniplayerWindow::HandleLButtonDown(int x, int y) {
     }
 
     // In expanded view:
-    // 0. Volume Control: (Speaker at 14..32, Slider track at 33..86), Y: [155..189]
-    if (y >= 155 && y <= 189 && x >= 14 && x <= 95) {
-        if (x <= 32) {
+    // 0. Volume Control: (Speaker at 14..33, Slider track at 34..112), Y: [155..189]
+    if (y >= 155 && y <= 189 && x >= 14 && x <= 112) {
+        if (x <= 33) {
             // Clicked speaker icon -> toggle mute
             if (g_currentSong.volume > 0) {
-                m_lastNonZeroVolume = g_currentSong.volume;
+                m_lastNonZeroVolume = (g_currentSong.volume > 5) ? g_currentSong.volume : 50;
                 g_currentSong.volume = 0;
             } else {
-                g_currentSong.volume = (m_lastNonZeroVolume > 0) ? m_lastNonZeroVolume : 50;
+                g_currentSong.volume = (m_lastNonZeroVolume > 5) ? m_lastNonZeroVolume : 50;
             }
             App_SetVolume(g_currentSong.volume);
             Render();
             return;
-        } else {
+        } else if (x >= 34) {
             // Clicked volume slider track
-            int vol = (int)(((float)(x - 36) / 48.0f) * 100.0f + 0.5f);
+            float pct = (float)(x - 36) / 48.0f;
+            if (pct < 0.0f) pct = 0.0f;
+            if (pct > 1.0f) pct = 1.0f;
+            int vol = (int)(pct * 100.0f + 0.5f);
             if (vol < 0) vol = 0;
             if (vol > 100) vol = 100;
+            if (vol > 0) m_lastNonZeroVolume = vol;
             g_currentSong.volume = vol;
             App_SetVolume(vol);
             Render();
@@ -404,6 +412,7 @@ void MiniplayerWindow::HandleMouseWheel(short delta) {
     int newVol = currentVol + step;
     if (newVol < 0) newVol = 0;
     if (newVol > 100) newVol = 100;
+    if (newVol > 0) m_lastNonZeroVolume = newVol;
     g_currentSong.volume = newVol;
     App_SetVolume(newVol);
     Render();
