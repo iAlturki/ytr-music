@@ -1,13 +1,14 @@
 #include <windows.h>
 #include "resource.h"
+#include "version.h"
 
 IDI_APP_ICON ICON "app.ico"
 IDR_WEBVIEW2_LOADER RCDATA "../sdk/x64/WebView2Loader.dll"
 IDR_BRIDGE_JS RCDATA "../src/bridge.js"
 
 1 VERSIONINFO
-FILEVERSION 1,0,0,0
-PRODUCTVERSION 1,0,0,0
+FILEVERSION YTR_VERSION_RC
+PRODUCTVERSION YTR_VERSION_RC
 FILEFLAGSMASK 0x3fL
 FILEFLAGS 0x0L
 FILEOS VOS_NT_WINDOWS32
@@ -20,12 +21,12 @@ BEGIN
         BEGIN
             VALUE "CompanyName", "iALTURKi"
             VALUE "FileDescription", "ytr-music (iALTURKi Edition)"
-            VALUE "FileVersion", "4.0.0.0"
+            VALUE "FileVersion", YTR_VERSION_STRING
             VALUE "InternalName", "ytr-music"
-            VALUE "LegalCopyright", "Copyright (C) 2026 iALTURKi. All rights reserved."
+            VALUE "LegalCopyright", "Copyright (C) 2026 iALTURKi. MIT License."
             VALUE "OriginalFilename", "ytr-music.exe"
             VALUE "ProductName", "ytr-music"
-            VALUE "ProductVersion", "4.0.0.0"
+            VALUE "ProductVersion", YTR_VERSION_STRING
         END
     END
     BLOCK "VarFileInfo"
