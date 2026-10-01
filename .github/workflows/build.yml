@@ -1,0 +1,48 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install MinGW-w64 (UCRT64)
+        id: msys2
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: false
+          install: mingw-w64-ucrt-x86_64-gcc
+
+      - name: Put the toolchain on PATH
+        shell: pwsh
+        run: Add-Content -Path $env:GITHUB_PATH -Value "${{ steps.msys2.outputs.msys2-location }}\ucrt64\bin"
+
+      - name: Check page bridge syntax
+        run: node --check native/src/bridge.js
+
+      - name: Build (release)
+        shell: cmd
+        run: native\build.bat release
+
+      - name: Upload exe
+        uses: actions/upload-artifact@v4
+        with:
+          name: ytr-music-${{ github.sha }}
+          path: native/bin/ytr-music.exe
+          if-no-files-found: error
+          retention-days: 30

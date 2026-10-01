@@ -1,0 +1,32 @@
+name: Bug report
+description: Something is broken or slower than it should be
+labels: [bug]
+body:
+  - type: input
+    id: version
+    attributes:
+      label: ytr-music version
+      description: Right-click ytr-music.exe > Properties > Details > Product version
+      placeholder: 4.2.0
+    validations:
+      required: true
+  - type: input
+    id: windows
+    attributes:
+      label: Windows version
+      placeholder: Windows 11 24H2
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: log
+    attributes:
+      label: Debug log (optional)
+      description: Start `ytr-music.exe --debug`, reproduce, then attach `%APPDATA%\ytr-music-native\debug.log`.
+      render: text
