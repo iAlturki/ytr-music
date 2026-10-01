@@ -3,6 +3,11 @@
 All notable changes to ytr-music are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses [Semantic Versioning](https://semver.org/).
 
+## [4.2.1] - 2026-10-01
+
+### Fixed
+- The Smooth Audio button showed OFF at startup even when Smooth Audio was on, so the first click looked like it did nothing. The EQ button label had the same startup issue.
+
 ## [4.2.0] - 2026-10-01
 
 ### Performance
@@ -49,6 +54,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 ### Added
 - Native C++ Win32 + WebView2 client with ad blocking, desktop miniplayer, tray and taskbar controls, and global media hotkeys.
 
+[4.2.1]: https://github.com/iAlturki/ytr-music/compare/v4.2.0...v4.2.1
 [4.2.0]: https://github.com/iAlturki/ytr-music/compare/v4.1.0...v4.2.0
 [4.1.0]: https://github.com/iAlturki/ytr-music/compare/v4.0.0...v4.1.0
 [4.0.0]: https://github.com/iAlturki/ytr-music/releases/tag/v4.0.0

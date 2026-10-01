@@ -4,7 +4,7 @@
 // build script read it). Bump here only.
 #define YTR_VERSION_MAJOR 4
 #define YTR_VERSION_MINOR 2
-#define YTR_VERSION_PATCH 0
+#define YTR_VERSION_PATCH 1
 
 #define YTR_STR2(x) #x
 #define YTR_STR(x) YTR_STR2(x)

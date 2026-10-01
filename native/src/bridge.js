@@ -1814,6 +1814,9 @@
             if (bar) {
                 if (bar.parentElement !== document.body) {
                     document.body.prepend(bar);
+                    // Toggles made while it was detached could not reach it.
+                    updateSmoothAudioUI();
+                    updateEqButtonUI();
                 }
                 return;
             }
@@ -2007,10 +2010,10 @@
             bar.querySelector('#ytr-btn-eq')?.addEventListener('click', toggleEqualizerModal);
             bar.querySelector('#ytr-menu-eq')?.addEventListener('click', toggleEqualizerModal);
 
+            document.body.prepend(bar);
+            // The UI sync looks its elements up by id, so it only works once the bar is in the document.
             updateSmoothAudioUI();
             updateEqButtonUI();
-
-            document.body.prepend(bar);
             refreshTicker();
         } catch (err) {
             logToHost('TopBar install error: ' + (err && err.message));
