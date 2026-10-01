@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="256" viewBox="0 0 760 256" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans',Helvetica,Arial,sans-serif" role="img" aria-labelledby="t d">
+<title id="t">CPU use of ytr-music 4.1 vs 4.2</title>
+<desc id="d">Percent of one CPU core, whole process tree, lower is better. In the tray, playing: 4.1 24%, 4.2 6.8%; In the tray, paused: 4.1 10.3%, 4.2 0.8%; Window open, playing: 4.1 13.4%, 4.2 12.7%.</desc>
+<text x="0" y="20" font-size="14" font-weight="600" fill="#1f2328">CPU use</text>
+<text x="66" y="20" font-size="12" fill="#59636e">% of one core · whole app · lower is better</text>
+<rect x="628" y="10" width="10" height="10" rx="2" fill="#4f7bd6"/><text x="644" y="19" font-size="12" fill="#59636e">4.1</text>
+<rect x="684" y="10" width="10" height="10" rx="2" fill="#e04a17"/><text x="700" y="19" font-size="12" font-weight="600" fill="#1f2328">4.2</text>
+<line x1="190" y1="48" x2="190" y2="212" stroke="#d1d9e0" stroke-width="1" /><text x="190" y="228" font-size="11" fill="#818b98" text-anchor="middle">0%</text>
+<line x1="284" y1="48" x2="284" y2="212" stroke="#d1d9e0" stroke-width="1" stroke-dasharray="2 4"/><text x="284" y="228" font-size="11" fill="#818b98" text-anchor="middle">5%</text>
+<line x1="378" y1="48" x2="378" y2="212" stroke="#d1d9e0" stroke-width="1" stroke-dasharray="2 4"/><text x="378" y="228" font-size="11" fill="#818b98" text-anchor="middle">10%</text>
+<line x1="472" y1="48" x2="472" y2="212" stroke="#d1d9e0" stroke-width="1" stroke-dasharray="2 4"/><text x="472" y="228" font-size="11" fill="#818b98" text-anchor="middle">15%</text>
+<line x1="566" y1="48" x2="566" y2="212" stroke="#d1d9e0" stroke-width="1" stroke-dasharray="2 4"/><text x="566" y="228" font-size="11" fill="#818b98" text-anchor="middle">20%</text>
+<line x1="660" y1="48" x2="660" y2="212" stroke="#d1d9e0" stroke-width="1" stroke-dasharray="2 4"/><text x="660" y="228" font-size="11" fill="#818b98" text-anchor="middle">25%</text>
+<text x="0" y="74" font-size="13" fill="#1f2328">In the tray, playing</text>
+<path d="M190,56 H637.2 Q641.2,56 641.2,60 V66 Q641.2,70 637.2,70 H190 Z" fill="#4f7bd6"/><text x="649.2" y="67" font-size="11" fill="#59636e">24.0%</text>
+<path d="M190,72 H313.84000000000003 Q317.84000000000003,72 317.84000000000003,76 V82 Q317.84000000000003,86 313.84000000000003,86 H190 Z" fill="#e04a17"/><text x="325.84000000000003" y="83" font-size="12" font-weight="600" fill="#1f2328">6.8% <tspan font-weight="400" fill="#59636e">−72%</tspan></text>
+<text x="0" y="130" font-size="13" fill="#1f2328">In the tray, paused</text>
+<path d="M190,112 H379.64 Q383.64,112 383.64,116 V122 Q383.64,126 379.64,126 H190 Z" fill="#4f7bd6"/><text x="391.64" y="123" font-size="11" fill="#59636e">10.3%</text>
+<path d="M190,128 H201.04 Q205.04,128 205.04,132 V138 Q205.04,142 201.04,142 H190 Z" fill="#e04a17"/><text x="213.04" y="139" font-size="12" font-weight="600" fill="#1f2328">0.8% <tspan font-weight="400" fill="#59636e">−92%</tspan></text>
+<text x="0" y="186" font-size="13" fill="#1f2328">Window open, playing</text>
+<path d="M190,168 H437.92 Q441.92,168 441.92,172 V178 Q441.92,182 437.92,182 H190 Z" fill="#4f7bd6"/><text x="449.92" y="179" font-size="11" fill="#59636e">13.4%</text>
+<path d="M190,184 H424.76 Q428.76,184 428.76,188 V194 Q428.76,198 424.76,198 H190 Z" fill="#e04a17"/><text x="436.76" y="195" font-size="12" font-weight="600" fill="#1f2328">12.7%</text>
+</svg>
