@@ -35,6 +35,5 @@ private:
     ICoreWebView2Controller* m_controller = nullptr;
     ICoreWebView2* m_webview = nullptr;
     bool m_isReady = false;
-    std::wstring m_bridgeScript;
     std::function<void()> m_onInitialized;
 };

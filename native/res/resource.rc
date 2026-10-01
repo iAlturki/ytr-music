@@ -3,6 +3,7 @@
 
 IDI_APP_ICON ICON "app.ico"
 IDR_WEBVIEW2_LOADER RCDATA "../sdk/x64/WebView2Loader.dll"
+IDR_BRIDGE_JS RCDATA "../src/bridge.js"
 
 1 VERSIONINFO
 FILEVERSION 1,0,0,0
