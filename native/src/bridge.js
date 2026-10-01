@@ -1,23 +1,61 @@
 (function() {
-    console.log('[ytr-native] Injected bridge loading...');
+    // Only the top document hosts the player, top bar and audio graph; child frames
+    // (sign-in widgets, embeds) get nothing. Comparing WindowProxies never throws cross-origin.
+    try {
+        if (window.top !== window) return;
+    } catch (_) {
+        return;
+    }
     if (window.__ytr_bridge_installed) {
         if (typeof window.__ytr_recheck === 'function') window.__ytr_recheck();
         return;
     }
     window.__ytr_bridge_installed = true;
 
+    function postToHost(obj) {
+        try {
+            if (window.chrome && window.chrome.webview) {
+                window.chrome.webview.postMessage(JSON.stringify(obj));
+            }
+        } catch (_) {}
+    }
+
+    function logToHost(message) {
+        postToHost({ type: 'log', message: String(message) });
+    }
+
+    function lsGet(key) {
+        try {
+            return localStorage.getItem(key);
+        } catch (_) {
+            return null;
+        }
+    }
+
+    function lsSet(key, value) {
+        try {
+            localStorage.setItem(key, value);
+        } catch (_) {}
+    }
+
     // 0. High-Performance Innertube / Player Ad Stripper (Intercepts API responses before YouTube parses them)
-    function sanitizeAdObject(obj, visited = new WeakSet()) {
-        if (!obj || typeof obj !== 'object' || visited.has(obj)) return;
-        visited.add(obj);
-        delete obj.playerAds;
-        delete obj.adPlacements;
-        delete obj.adSlots;
-        delete obj.adBreakHeartbeatParams;
-        delete obj.adBreakHeartbeatRenderer;
-        delete obj.adThrottled;
-        if (obj.playerResponse && typeof obj.playerResponse === 'object') {
-            sanitizeAdObject(obj.playerResponse, visited);
+    // Runs on every JSON.parse in the page: no allocation, no recursion, and objects
+    // without ad keys cost six property probes.
+    function stripAds(o) {
+        if ('playerAds' in o) delete o.playerAds;
+        if ('adPlacements' in o) delete o.adPlacements;
+        if ('adSlots' in o) delete o.adSlots;
+        if ('adBreakHeartbeatParams' in o) delete o.adBreakHeartbeatParams;
+        if ('adBreakHeartbeatRenderer' in o) delete o.adBreakHeartbeatRenderer;
+        if ('adThrottled' in o) delete o.adThrottled;
+    }
+
+    function sanitizeAdObject(obj) {
+        for (let depth = 0; depth < 4 && obj !== null && typeof obj === 'object'; depth++) {
+            stripAds(obj);
+            const next = obj.playerResponse;
+            if (next === obj) break;
+            obj = next;
         }
     }
 
@@ -26,9 +64,11 @@
         const origResponseJson = Response.prototype.json;
         Response.prototype.json = async function() {
             const data = await origResponseJson.apply(this, arguments);
-            try {
-                sanitizeAdObject(data);
-            } catch (_) {}
+            if (data !== null && typeof data === 'object') {
+                try {
+                    sanitizeAdObject(data);
+                } catch (_) {}
+            }
             return data;
         };
     } catch (_) {}
@@ -38,9 +78,11 @@
         const origJsonParse = JSON.parse;
         JSON.parse = function(text, reviver) {
             const data = origJsonParse.apply(this, arguments);
-            try {
-                sanitizeAdObject(data);
-            } catch (_) {}
+            if (data !== null && typeof data === 'object') {
+                try {
+                    sanitizeAdObject(data);
+                } catch (_) {}
+            }
             return data;
         };
     } catch (_) {}
@@ -60,15 +102,29 @@
 
     } catch (_) {}
 
+    // YTM assigns navigator.mediaSession.metadata once per track; this is the cheapest
+    // reliable signal that title/artist/artwork changed.
+    try {
+        const mdDesc = typeof MediaSession !== 'undefined'
+            ? Object.getOwnPropertyDescriptor(MediaSession.prototype, 'metadata')
+            : null;
+        if (mdDesc && mdDesc.get && mdDesc.set) {
+            Object.defineProperty(MediaSession.prototype, 'metadata', {
+                configurable: true,
+                enumerable: mdDesc.enumerable,
+                get: mdDesc.get,
+                set(value) {
+                    mdDesc.set.call(this, value);
+                    try {
+                        queueState(50);
+                    } catch (_) {}
+                }
+            });
+        }
+    } catch (_) {}
+
     // 1. Safe CSS Injection: Topbar + Layout Offset + Complete Ad/Promo Blocking
-    function ensureStyles() {
-        try {
-            if (document.getElementById('ytr-adblock-styles')) return;
-            const target = document.head || document.documentElement;
-            if (!target) return;
-            const style = document.createElement('style');
-            style.id = 'ytr-adblock-styles';
-            style.textContent = `
+    const CORE_CSS = `
                 /* Complete Ad & Promo Blocker Rules */
                 .ytp-ad-overlay-container,
                 .ytp-ad-message-container,
@@ -77,22 +133,12 @@
                 ytmusic-mealbar-promo-renderer,
                 ytd-ad-slot-renderer,
                 ytmusic-banner-promo-renderer,
-                tp-yt-paper-dialog:has(ytmusic-mealbar-promo-renderer),
-                ytmusic-popup-container:has(ytmusic-mealbar-promo-renderer),
-                ytmusic-popup-container:has(ytmusic-upsell-dialog-renderer),
-                ytmusic-guide-entry-renderer:has(a[href*="/upgrade"]),
-                ytmusic-guide-entry-renderer:has(a[title*="Upgrade"]),
-                ytmusic-guide-entry-renderer:has(a[aria-label*="Upgrade"]),
-                ytmusic-guide-entry-renderer:has([title*="Upgrade" i]),
-                ytmusic-guide-entry-renderer:has([aria-label*="Upgrade" i]),
-                ytmusic-guide-entry-renderer:has(yt-formatted-string[title*="Upgrade" i]),
-                ytmusic-guide-section-renderer:has(a[href*="/upgrade"]),
                 a[href*="/music_premium"],
                 a[href*="/upgrade"],
                 #upgrade-button,
                 .ytmusic-nav-bar #upgrade-button,
-                ytmusic-pivot-bar-item-renderer:has(a[href*="/upgrade"]),
                 ytmusic-upsell-dialog-renderer,
+                ytmusic-guide-entry-renderer[ytr-hide],
                 .ytp-ad-preview-container,
                 .ytp-ad-preview-text,
                 .ytp-ad-text,
@@ -105,6 +151,12 @@
                     pointer-events: none !important;
                     height: 0 !important;
                     opacity: 0 !important;
+                }
+
+                /* Kept apart so an unsupported :has() form can only drop these two selectors */
+                tp-yt-paper-dialog:has(> ytmusic-mealbar-promo-renderer:only-child),
+                ytmusic-pivot-bar-item-renderer:has(a[href*="/upgrade"]) {
+                    display: none !important;
                 }
 
                 /* Topbar Layout Offset: pushes YouTube Music down 36px so it never collides */
@@ -353,8 +405,10 @@
                     box-shadow: 0 0 12px rgba(255, 61, 0, 0.55);
                     transform: translateY(-1px);
                 }
+            `;
 
-                /* Dolby Equalizer Modal & Backdrop */
+    const EQ_CSS = `
+                /* Equalizer Modal & Backdrop */
                 #ytr-eq-overlay {
                     position: fixed !important;
                     top: 0 !important;
@@ -580,133 +634,314 @@
                     color: #ffffff !important;
                 }
             `;
+
+    function ensureStyles() {
+        try {
+            if (document.getElementById('ytr-adblock-styles')) return;
+            const target = document.head || document.documentElement;
+            if (!target) return;
+            const style = document.createElement('style');
+            style.id = 'ytr-adblock-styles';
+            style.textContent = CORE_CSS;
             target.appendChild(style);
         } catch (_) {}
     }
 
-    // 2. High-Precision Ad Detection & Non-Intrusive Instant Skipper
+    function ensureEqStyles() {
+        try {
+            if (document.getElementById('ytr-eq-styles')) return;
+            const target = document.head || document.documentElement;
+            if (!target) return;
+            const style = document.createElement('style');
+            style.id = 'ytr-eq-styles';
+            style.textContent = EQ_CSS;
+            target.appendChild(style);
+        } catch (_) {}
+    }
+
+    // Attach the core sheet before the first paint so the 36px offset never shifts the layout.
+    if (document.documentElement) {
+        ensureStyles();
+    } else {
+        try {
+            const earlyCss = new MutationObserver(() => {
+                if (document.documentElement) {
+                    earlyCss.disconnect();
+                    ensureStyles();
+                }
+            });
+            earlyCss.observe(document, { childList: true });
+        } catch (_) {}
+    }
+
+    // 2. Ad Detection & Skipper (event driven: player class observer + media events; a 250 ms
+    // timer exists only while an ad is on screen)
+    const AD_SKIP_SEL = '.ytp-skip-ad-button, .ytp-ad-skip-button-modern, .ytp-ad-skip-button, button.ytp-ad-skip-button-slot, button.videoAdUiSkipButton';
+    const AD_OVERLAY_SEL = '.ytp-ad-player-overlay, .ytp-ad-player-overlay-layout, .video-ads';
+
+    let playerRef = null;
+    let ytmPlayerRef = null;
+    let videoRef = null;
+
+    function getPlayer() {
+        if (playerRef && playerRef.isConnected) return playerRef;
+        playerRef = document.getElementById('movie_player');
+        return playerRef;
+    }
+
+    function getYtmPlayer() {
+        if (ytmPlayerRef && ytmPlayerRef.isConnected) return ytmPlayerRef;
+        const player = getPlayer();
+        ytmPlayerRef = player ? player.closest('ytmusic-player') : document.querySelector('ytmusic-player');
+        return ytmPlayerRef;
+    }
+
+    function findMainVideo() {
+        const p = getPlayer();
+        let v = p ? (p.querySelector('video.html5-main-video') || p.querySelector('video')) : null;
+        if (!v) {
+            const yp = getYtmPlayer();
+            if (yp) v = yp.querySelector('video');
+        }
+        return v;
+    }
+
+    // The player's own <video>, never an unrelated media element.
+    function getMainVideo() {
+        if (videoRef && videoRef.isConnected) return videoRef;
+        videoRef = findMainVideo();
+        return videoRef;
+    }
+
+    function getVideo() {
+        return getMainVideo() || document.querySelector('video');
+    }
+
+    // Media events are caught at document level (capture), which survives <video> swaps.
+    function mediaTarget(e) {
+        const t = e.target;
+        if (t === videoRef) return t;
+        if (!(t instanceof HTMLMediaElement)) return null;
+        if (t.closest('#movie_player, ytmusic-player') || !findMainVideo()) {
+            videoRef = t;
+            return t;
+        }
+        return null;
+    }
+
+    let adObs = null;
+    let adObsPlayer = null;
+    let adObsYtm = null;
+    let adTimer = 0;
+    let adActive = false;
     let adWasMuted = false;
     let userWasMuted = false;
+    let adSeekKey = '';
+    let adActionAt = -1e9;
 
-    function isAdPlaying() {
-        try {
-            const player = document.querySelector('#movie_player') || document.querySelector('ytmusic-player');
-            if (player) {
-                if (player.classList && (player.classList.contains('ad-showing') || player.classList.contains('ad-interrupting'))) {
-                    return true;
-                }
-                if (player.hasAttribute && player.hasAttribute('ad-interrupting')) {
-                    return true;
-                }
-                if (typeof player.getAdState === 'function' && player.getAdState() > 0) {
-                    return true;
-                }
-                if (typeof player.isAd === 'function' && player.isAd()) {
-                    return true;
-                }
-            }
-            const video = document.querySelector('video');
-            if (video && video.classList && video.classList.contains('ad-showing')) {
+    function isAdNow() {
+        const player = getPlayer();
+        if (player) {
+            const cl = player.classList;
+            if (cl.contains('ad-showing') || cl.contains('ad-interrupting') || player.hasAttribute('ad-interrupting')) {
                 return true;
             }
-            const skipBtn = document.querySelector('.ytp-ad-skip-button, .ytp-ad-skip-button-modern, .ytp-skip-ad-button, .ytp-ad-text');
-            if (skipBtn && (skipBtn.offsetWidth > 0 || skipBtn.offsetHeight > 0)) {
+            try {
+                if (typeof player.getAdState === 'function' && player.getAdState() > 0) return true;
+                if (typeof player.isAd === 'function' && player.isAd()) return true;
+            } catch (_) {}
+        }
+        const ytmPlayer = getYtmPlayer();
+        if (ytmPlayer && ytmPlayer.hasAttribute('ad-interrupting')) return true;
+        const video = getMainVideo();
+        return !!(video && video.classList.contains('ad-showing'));
+    }
+
+    // click() works on display:none elements, so the CSS that hides the skip container
+    // does not stop this. No visibility probe: that would force a layout per tick.
+    function clickAdSkip(player) {
+        try {
+            let b = player ? player.querySelector(AD_SKIP_SEL) : null;
+            if (!b) b = document.querySelector(AD_SKIP_SEL);
+            if (b && !b.disabled && !b.hasAttribute('disabled')) {
+                b.click();
                 return true;
             }
         } catch (_) {}
         return false;
     }
 
-    function clickAdSkip() {
+    function adStep(act) {
+        const video = getVideo();
+        if (!video) return;
+        const player = getPlayer();
+        adActive = true;
+
+        // 1. Visually hide it immediately so user NEVER sees any ad frames
+        if (video.style.opacity !== '0') video.style.opacity = '0';
+        const adOverlays = (player || document).querySelectorAll(AD_OVERLAY_SEL);
+        for (let i = 0; i < adOverlays.length; i++) {
+            if (adOverlays[i].style.display !== 'none') adOverlays[i].style.display = 'none';
+        }
+
+        // 2. Mute audio completely (re-applied: the player may restore its own mute state when
+        // it loads the next ad of a pod)
+        if (!adWasMuted) {
+            userWasMuted = video.muted;
+            adWasMuted = true;
+        }
+        if (!video.muted) video.muted = true;
+
+        if (act) {
+            // 3. Try calling player API skipAd()
+            try {
+                if (player && typeof player.skipAd === 'function') {
+                    player.skipAd();
+                }
+            } catch (_) {}
+
+            // 4. Click skip button if present
+            clickAdSkip(player);
+        }
+
+        // 5. Jump to the end of the ad stream once per stream: every completed seek queues a
+        // timeupdate, so an unconditional seek here would feed itself.
         try {
-            const skipSelectors = [
-                '.ytp-ad-skip-button-modern',
-                '.ytp-skip-ad-button',
-                '.ytp-ad-skip-button',
-                'button.ytp-ad-skip-button-slot',
-                'button.videoAdUiSkipButton',
-                '.videoAdUiAction',
-                '[class*="skip-button" i]',
-                '[id*="skip-button" i]',
-                'tp-yt-paper-button.ytmusic-mealbar-promo-renderer'
-            ];
-            for (const sel of skipSelectors) {
-                const btns = document.querySelectorAll(sel);
-                for (const b of btns) {
-                    if (b && (b.offsetWidth > 0 || b.offsetHeight > 0) && !b.hasAttribute('disabled')) {
-                        b.click();
-                        return true;
-                    }
+            const d = video.duration;
+            if (Number.isFinite(d) && d > 0 && !video.seeking && video.currentTime < d - 0.3) {
+                const key = video.currentSrc + '|' + d;
+                if (key !== adSeekKey) {
+                    adSeekKey = key;
+                    video.currentTime = d;
                 }
             }
+            if (video.playbackRate !== 16) video.playbackRate = 16.0;
         } catch (_) {}
-        return false;
     }
 
-    function neutralizeAds() {
-        try {
-            ensureStyles();
-
-            const upgradeEntries = document.querySelectorAll('ytmusic-guide-entry-renderer');
-            for (const u of upgradeEntries) {
-                if (u.textContent && u.textContent.toLowerCase().includes('upgrade')) {
-                    u.style.display = 'none';
-                }
+    function adRestore() {
+        // Normal song playback: restore full visibility, normal speed, and unmute
+        const video = getVideo();
+        if (video) {
+            if (video.style.opacity === '0') video.style.opacity = '1';
+            if (video.playbackRate > 2.0) video.playbackRate = 1.0;
+            if (adWasMuted) {
+                if (!userWasMuted) video.muted = false;
+                adWasMuted = false;
             }
+        }
+        adSeekKey = '';
+        if (adActive) {
+            adActive = false;
+            queueState(0);
+        }
+    }
 
-            const isAd = isAdPlaying();
-            const video = document.querySelector('video');
-            const player = document.querySelector('#movie_player') || document.querySelector('ytmusic-player');
-
-            if (isAd && video) {
-                // Ad is actively interrupting:
-                // 1. Visually hide it immediately so user NEVER sees any ad frames
-                video.style.opacity = '0';
-                const adOverlays = document.querySelectorAll('.ytp-ad-player-overlay, .ytp-ad-player-overlay-layout, .video-ads');
-                for (const ov of adOverlays) {
-                    ov.style.display = 'none';
-                }
-
-                // 2. Mute audio completely
-                if (!adWasMuted) {
-                    userWasMuted = video.muted;
-                    video.muted = true;
-                    adWasMuted = true;
-                }
-
-                // 3. Try calling player API skipAd() or cancelPlayback()
-                try {
-                    if (player && typeof player.skipAd === 'function') {
-                        player.skipAd();
-                    }
-                } catch (_) {}
-
-                // 4. Click skip button if present
-                clickAdSkip();
-
-                // 5. Jump video time directly to the end of the ad stream to fire the 'ended' event
-                try {
-                    if (Number.isFinite(video.duration) && video.duration > 0) {
-                        video.currentTime = video.duration;
-                    }
-                    video.playbackRate = 16.0;
-                } catch (_) {}
-            } else if (video) {
-                // Normal song playback: restore full visibility, normal speed, and unmute
-                if (video.style.opacity === '0') {
-                    video.style.opacity = '1';
-                }
-                if (video.playbackRate > 2.0) {
-                    video.playbackRate = 1.0;
-                }
-                if (adWasMuted) {
-                    if (!userWasMuted) {
-                        video.muted = false;
-                    }
-                    adWasMuted = false;
-                }
+    function adTick() {
+        if (isAdNow()) {
+            // skipAd() and the skip click can rewrite the observed class attribute synchronously;
+            // rate-limiting them keeps observer -> adStep -> observer from spinning in microtasks.
+            // Hiding and muting stay immediate: they only write when a value differs.
+            const now = performance.now();
+            const act = now - adActionAt >= 100;
+            if (act) adActionAt = now;
+            adStep(act);
+            // The timer ends itself through isAdNow(), so a missed class change can never
+            // leave a song muted, invisible and at 16x.
+            if (!adTimer) adTimer = setInterval(adTick, 250);
+        } else {
+            if (adTimer) {
+                clearInterval(adTimer);
+                adTimer = 0;
             }
-        } catch (_) {}
+            adRestore();
+        }
+    }
+
+    function attachAdObserver() {
+        const player = getPlayer();
+        const ytmPlayer = getYtmPlayer();
+        if (player === adObsPlayer && ytmPlayer === adObsYtm) return !!player;
+        if (!adObs) adObs = new MutationObserver(adTick);
+        adObs.disconnect();
+        if (player) adObs.observe(player, { attributes: true, attributeFilter: ['class', 'ad-interrupting'] });
+        if (ytmPlayer && ytmPlayer !== player) adObs.observe(ytmPlayer, { attributes: true, attributeFilter: ['ad-interrupting'] });
+        adObsPlayer = player;
+        adObsYtm = ytmPlayer;
+        return !!player;
+    }
+
+    function isPromoDialog(dialog) {
+        let promo = false;
+        for (let c = dialog.firstElementChild; c; c = c.nextElementSibling) {
+            const tag = c.tagName;
+            if (tag === 'YTMUSIC-UPSELL-DIALOG-RENDERER' || tag === 'YTMUSIC-MEALBAR-PROMO-RENDERER') promo = true;
+            else if (tag.indexOf('-RENDERER') !== -1) return false;
+        }
+        return promo;
+    }
+
+    // Hiding an open modal with CSS would leave its backdrop and scroll lock behind; close it.
+    function onOverlayOpened(e) {
+        const d = e.composedPath ? e.composedPath()[0] : e.target;
+        if (d && d.tagName === 'TP-YT-PAPER-DIALOG' && isPromoDialog(d)) {
+            try {
+                d.close();
+            } catch (_) {}
+        }
+    }
+
+    // 3. Sidebar "Upgrade" entry: matched by its endpoint, not by text, so user playlists
+    // whose names contain "upgrade" stay visible. Toggled both ways because dom-repeat
+    // reuses entry elements.
+    const guideEntries = document.getElementsByTagName('ytmusic-guide-entry-renderer');
+    let guideObs = null;
+    let guideRoots = [];
+    let guideScanT = 0;
+
+    function isUpgradeEntry(entry) {
+        const d = entry.data;
+        if (d && typeof d === 'object') {
+            const ep = d.navigationEndpoint && d.navigationEndpoint.browseEndpoint;
+            if (ep && ep.browseId === 'SPunlimited') return true;
+            return !!(d.icon && d.icon.iconType === 'TAB_MUSIC_PREMIUM');
+        }
+        const t = entry.querySelector('.title');
+        return !!t && t.textContent.trim() === 'Upgrade';
+    }
+
+    function hideUpgradeEntries() {
+        for (let i = 0; i < guideEntries.length; i++) {
+            const entry = guideEntries[i];
+            const hide = isUpgradeEntry(entry);
+            if (hide !== entry.hasAttribute('ytr-hide')) entry.toggleAttribute('ytr-hide', hide);
+        }
+    }
+
+    function scheduleGuideScan() {
+        if (document.hidden || guideScanT) return;
+        guideScanT = setTimeout(() => {
+            guideScanT = 0;
+            try {
+                hideUpgradeEntries();
+            } catch (_) {}
+        }, 250);
+    }
+
+    function attachGuideObserver() {
+        const roots = document.getElementsByTagName('ytmusic-guide-renderer');
+        if (!roots.length) return false;
+        let same = roots.length === guideRoots.length;
+        for (let i = 0; same && i < roots.length; i++) same = roots[i] === guideRoots[i];
+        if (same) return true;
+        if (!guideObs) guideObs = new MutationObserver(scheduleGuideScan);
+        guideObs.disconnect();
+        guideRoots = Array.prototype.slice.call(roots);
+        for (let i = 0; i < guideRoots.length; i++) {
+            guideObs.observe(guideRoots[i], { childList: true, subtree: true });
+        }
+        scheduleGuideScan();
+        return true;
     }
 
     // 4. Safe DOM Construction Helpers (Pure DOM Nodes - 100% immune to Trusted Types CSP restrictions)
@@ -760,19 +995,39 @@
         } catch (_) {}
     }
 
-    // --- Studio-Grade Web Audio Equalizer (10-Band Biquad Filters & Dolby Presets) ---
+    // --- Studio-Grade Web Audio Equalizer (10-Band Biquad Filters & Presets) ---
     const EQ_FREQUENCIES = [32, 64, 125, 250, 500, 1000, 2000, 4000, 8000, 16000];
     const EQ_FREQ_LABELS = ['32', '64', '125', '250', '500', '1k', '2k', '4k', '8k', '16k'];
-    const DOLBY_PRESETS = {
-        'Dolby Atmos': [4, 3, 1, 0, -1, 1, 2, 3, 4, 5],
-        'Dolby Music': [3, 2, 1, 0, 1, 2, 2, 2, 3, 3],
-        'Dolby Movie': [5, 4, 2, -1, 0, 1, 2, 3, 4, 3],
+    const EQ_PRESETS = {
+        'Spatial':     [4, 3, 1, 0, -1, 1, 2, 3, 4, 5],
+        'Studio':      [3, 2, 1, 0, 1, 2, 2, 2, 3, 3],
+        'Cinema':      [5, 4, 2, -1, 0, 1, 2, 3, 4, 3],
         'Bass Boost':  [6, 5, 4, 2, 0, 0, 0, 1, 1, 1],
         'Vocal':       [-2, -1, 0, 1, 3, 3, 2, 1, 0, 0],
         'Rock':        [4, 3, 1, -1, -1, 1, 2, 3, 4, 4],
         'Gaming':      [3, 2, 0, -2, 1, 2, 4, 3, 2, 1],
         'Flat':        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
     };
+    const DEFAULT_PRESET = 'Spatial';
+    // Preset names used before 4.2; saved selections are migrated on load.
+    const LEGACY_PRESETS = { 'Dolby Atmos': 'Spatial', 'Dolby Music': 'Studio', 'Dolby Movie': 'Cinema' };
+
+    function loadPresetName() {
+        let name = lsGet('ytr_eq_preset');
+        if (name && LEGACY_PRESETS[name]) {
+            name = LEGACY_PRESETS[name];
+            try { localStorage.setItem('ytr_eq_preset', name); } catch (_) {}
+        }
+        return name || DEFAULT_PRESET;
+    }
+
+    function isValidGains(g) {
+        if (!Array.isArray(g) || g.length !== 10) return false;
+        for (let i = 0; i < 10; i++) {
+            if (typeof g[i] !== 'number' || !isFinite(g[i])) return false;
+        }
+        return true;
+    }
 
     window.__ytr_audio = window.__ytr_audio || {
         ctx: null,
@@ -780,129 +1035,360 @@
         filters: [],
         fadeGain: null,
         video: null,
-        masterEnabled: localStorage.getItem('ytr_eq_enabled') !== 'false',
-        presetName: localStorage.getItem('ytr_eq_preset') || 'Dolby Atmos',
+        masterEnabled: lsGet('ytr_eq_enabled') !== 'false',
+        presetName: loadPresetName(),
         gains: null
     };
 
     const A = window.__ytr_audio;
-    if (!A.gains) {
+    if (LEGACY_PRESETS[A.presetName]) A.presetName = LEGACY_PRESETS[A.presetName];
+    if (!isValidGains(A.gains)) {
+        A.gains = null;
         try {
-            const saved = localStorage.getItem('ytr_eq_gains');
+            const saved = lsGet('ytr_eq_gains');
             if (saved) A.gains = JSON.parse(saved);
         } catch (_) {}
-        if (!Array.isArray(A.gains) || A.gains.length !== 10) {
-            A.gains = DOLBY_PRESETS[A.presetName] ? [...DOLBY_PRESETS[A.presetName]] : [...DOLBY_PRESETS['Dolby Atmos']];
+        if (!isValidGains(A.gains)) {
+            A.gains = [...(EQ_PRESETS[A.presetName] || EQ_PRESETS[DEFAULT_PRESET])];
+        }
+    }
+    if (!A.sources) A.sources = new WeakMap();
+    if (!A.failed) A.failed = new WeakSet();
+    if (!A.stale) A.stale = [];
+    if (typeof A.fadeInAt !== 'number') A.fadeInAt = -1;
+    A.pending = A.pending || null;
+
+    let smoothAudioEnabled = lsGet('ytr_smooth_audio') === 'true';
+
+    function eqIsActive() {
+        if (!A.masterEnabled) return false;
+        for (let i = 0; i < 10; i++) {
+            if (Math.abs(A.gains[i]) >= 0.05) return true;
+        }
+        return false;
+    }
+
+    // Holds param at its current value until t0, then ramps to target over dur seconds
+    // (dur 0: jump now, used while the context is not rendering).
+    function rampParam(param, target, t0, dur) {
+        const now = A.ctx.currentTime;
+        try {
+            param.cancelScheduledValues(now);
+            if (dur > 0) {
+                const cur = param.value;
+                param.setValueAtTime(cur, now);
+                if (t0 > now) param.setValueAtTime(cur, t0);
+                param.linearRampToValueAtTime(target, Math.max(t0, now) + dur);
+            } else {
+                param.setValueAtTime(target, now);
+            }
+        } catch (_) {
+            param.value = target;
+        }
+    }
+
+    function rampFade(target, dur, from) {
+        if (!A.ctx || !A.fadeGain) return;
+        const g = A.fadeGain.gain;
+        const now = A.ctx.currentTime;
+        try {
+            g.cancelScheduledValues(now);
+            g.setValueAtTime(from === undefined ? g.value : from, now);
+            g.linearRampToValueAtTime(target, now + dur);
+        } catch (_) {
+            g.value = target;
+        }
+    }
+
+    function connectEqChain() {
+        try { A.filters[9].connect(A.wetGain); } catch (_) {}
+        if (A.source) {
+            try { A.source.connect(A.filters[0]); } catch (_) {}
+        }
+        A.eqChainOn = true;
+    }
+
+    function disconnectEqChain() {
+        if (A.source) {
+            try { A.source.disconnect(A.filters[0]); } catch (_) {}
+        }
+        try { A.filters[9].disconnect(A.wetGain); } catch (_) {}
+        A.eqChainOn = false;
+    }
+
+    // Wet and dry always sum to 1, so a crossfade between identical signals is silent.
+    function setEqMix(wet, t0, dur) {
+        rampParam(A.wetGain.gain, wet ? 1 : 0, t0, dur);
+        rampParam(A.dryGain.gain, wet ? 0 : 1, t0, dur);
+        A.eqWet = wet;
+        A.eqMixEnd = Math.max(t0, A.ctx.currentTime) + dur;
+    }
+
+    function scheduleEqRelease() {
+        if (A.bypassTimer) clearTimeout(A.bypassTimer);
+        A.bypassTimer = setTimeout(function release() {
+            A.bypassTimer = 0;
+            if (A.eqWet || !A.eqChainOn || eqIsActive() || !A.ctx) return;
+            if (A.ctx.state === 'running') {
+                if (A.ctx.currentTime < A.eqMixEnd + 0.01) {
+                    A.bypassTimer = setTimeout(release, 100);
+                    return;
+                }
+            } else {
+                // Not rendering, so snapping to the final mix cannot click.
+                setEqMix(false, A.ctx.currentTime, 0);
+            }
+            disconnectEqChain();
+        }, 150);
+    }
+
+    // Applies A.gains / A.masterEnabled to the graph (band -1 = all bands). When the EQ is
+    // OFF or flat the filter chain is crossfaded out and disconnected so the biquads stop
+    // running; it is reconnected while still at 0 dB (identity) before fading back in.
+    function refreshEqAudio(band) {
+        const ctx = A.ctx;
+        if (!ctx || !A.wetGain || A.filters.length !== 10) return;
+        const running = ctx.state === 'running';
+        const now = ctx.currentTime;
+        const want = eqIsActive();
+        let t0 = now;
+        if (want) {
+            if (A.bypassTimer) {
+                clearTimeout(A.bypassTimer);
+                A.bypassTimer = 0;
+            }
+            if (!A.eqChainOn) connectEqChain();
+            if (!A.eqWet) {
+                t0 = running ? now + 0.02 : now;
+                setEqMix(true, t0, running ? 0.025 : 0);
+            }
+        }
+        const first = band >= 0 ? band : 0;
+        const last = band >= 0 ? band : 9;
+        for (let i = first; i <= last; i++) {
+            rampParam(A.filters[i].gain, A.masterEnabled ? A.gains[i] : 0.0, t0, running ? 0.05 : 0);
+        }
+        if (!want) {
+            if (A.eqWet) setEqMix(false, now + (running ? 0.05 : 0), running ? 0.025 : 0);
+            if (A.eqChainOn) {
+                if (running) scheduleEqRelease();
+                else disconnectEqChain();
+            }
+        }
+    }
+
+    function ensureAudioCtx() {
+        if (A.ctx) return A.ctx;
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContextClass) return null;
+        let ctx = null;
+        try {
+            // 'playback' uses larger render buffers: fewer audio-thread wakeups for ~10 ms latency.
+            ctx = new AudioContextClass({ latencyHint: 'playback' });
+        } catch (_) {
+            try {
+                ctx = new AudioContextClass();
+            } catch (e) {
+                console.warn('[ytr-audio] AudioContext error:', e);
+                return null;
+            }
+        }
+        A.ctx = ctx;
+
+        // Source -> DryGain ------------------------------------> FadeGain -> Destination
+        // Source -> Filter[0] -> ... -> Filter[9] -> WetGain --->   (only while the EQ is active)
+        A.filters = [];
+        for (let i = 0; i < EQ_FREQUENCIES.length; i++) {
+            const filter = ctx.createBiquadFilter();
+            if (i === 0) {
+                filter.type = 'lowshelf';
+            } else if (i === EQ_FREQUENCIES.length - 1) {
+                filter.type = 'highshelf';
+            } else {
+                filter.type = 'peaking';
+                filter.Q.value = 1.4;
+            }
+            filter.frequency.value = EQ_FREQUENCIES[i];
+            filter.gain.value = A.masterEnabled ? A.gains[i] : 0.0;
+            if (i > 0) A.filters[i - 1].connect(filter);
+            A.filters.push(filter);
+        }
+
+        // Dedicated GainNode for Smooth Audio Fading
+        A.fadeGain = ctx.createGain();
+        A.fadeGain.gain.value = 1.0;
+        A.dryGain = ctx.createGain();
+        A.wetGain = ctx.createGain();
+        A.dryGain.connect(A.fadeGain);
+        A.wetGain.connect(A.fadeGain);
+        A.fadeGain.connect(ctx.destination);
+
+        A.eqChainOn = false;
+        A.eqWet = eqIsActive();
+        A.wetGain.gain.value = A.eqWet ? 1 : 0;
+        A.dryGain.gain.value = A.eqWet ? 0 : 1;
+        if (A.eqWet) connectEqChain();
+
+        A.ctxStarted = ctx.state === 'running';
+        ctx.addEventListener('statechange', onCtxStateChange);
+
+        window.__ytr_audioCtx = ctx;
+        window.__ytr_eqFilters = A.filters;
+        window.__ytr_fadeGain = A.fadeGain;
+        return ctx;
+    }
+
+    function sweepStaleSources() {
+        for (let i = A.stale.length - 1; i >= 0; i--) {
+            const el = A.stale[i];
+            if (el === A.video) {
+                A.stale.splice(i, 1);
+                continue;
+            }
+            // A captured element is only audible through the graph: never cut one that may still play.
+            if (!el.isConnected && (el.paused || el.ended)) {
+                const src = A.sources.get(el);
+                if (src) {
+                    try { src.disconnect(); } catch (_) {}
+                }
+                A.stale.splice(i, 1);
+            }
         }
     }
 
     function initAudioGraph(video) {
-        if (!video) return;
-        const A = window.__ytr_audio;
-        if (A.video === video && A.ctx && A.filters && A.filters.length === 10) {
-            if (A.ctx.state === 'suspended') {
-                A.ctx.resume().catch(() => {});
+        if (!video || A.video === video || A.failed.has(video)) return;
+        const ctx = ensureAudioCtx();
+        if (!ctx) return;
+
+        let src = A.sources.get(video);
+        if (!src) {
+            if (!A.ctxStarted && ctx.state !== 'running') {
+                // Capturing the element into a context the autoplay policy has not let start
+                // would mute it; attach once the context runs (onCtxStateChange).
+                A.waitingVideo = video;
+                if (!video.paused) ctx.resume().catch(() => {});
+                return;
             }
-            return;
+            try {
+                src = ctx.createMediaElementSource(video);
+                A.sources.set(video, src);
+            } catch (err) {
+                A.failed.add(video);
+                console.warn('[ytr-audio] createMediaElementSource warning:', err);
+                return;
+            }
         }
 
-        try {
-            const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-            if (!AudioContextClass) return;
-
-            if (!A.ctx) {
-                A.ctx = new AudioContextClass();
-            }
-
-            if (A.video !== video) {
-                try {
-                    A.source = A.ctx.createMediaElementSource(video);
-                    A.video = video;
-
-                    // Build 10-Band Biquad Filter chain
-                    A.filters = [];
-                    for (let i = 0; i < EQ_FREQUENCIES.length; i++) {
-                        const freq = EQ_FREQUENCIES[i];
-                        const filter = A.ctx.createBiquadFilter();
-                        if (i === 0) {
-                            filter.type = 'lowshelf';
-                        } else if (i === EQ_FREQUENCIES.length - 1) {
-                            filter.type = 'highshelf';
-                        } else {
-                            filter.type = 'peaking';
-                            filter.Q.value = 1.4;
-                        }
-                        filter.frequency.value = freq;
-                        filter.gain.value = A.masterEnabled ? A.gains[i] : 0.0;
-                        A.filters.push(filter);
-                    }
-
-                    // Dedicated GainNode for Smooth Audio Fading
-                    A.fadeGain = A.ctx.createGain();
-                    A.fadeGain.gain.value = 1.0;
-
-                    // Chain: Source -> Filter[0] -> ... -> Filter[9] -> FadeGain -> Destination
-                    let prev = A.source;
-                    for (let i = 0; i < A.filters.length; i++) {
-                        prev.connect(A.filters[i]);
-                        prev = A.filters[i];
-                    }
-                    prev.connect(A.fadeGain);
-                    A.fadeGain.connect(A.ctx.destination);
-
-                    window.__ytr_audioCtx = A.ctx;
-                    window.__ytr_eqFilters = A.filters;
-                    window.__ytr_fadeGain = A.fadeGain;
-                } catch (err) {
-                    console.warn('[ytr-audio] createMediaElementSource warning:', err);
-                }
-            }
-
-            if (A.ctx.state === 'suspended') {
-                A.ctx.resume().catch(() => {});
-            }
-        } catch (e) {
-            console.warn('[ytr-audio] initAudioGraph error:', e);
+        try { src.connect(A.dryGain); } catch (_) {}
+        if (A.eqChainOn) {
+            try { src.connect(A.filters[0]); } catch (_) {}
         }
+        const oldVideo = A.video;
+        A.video = video;
+        A.source = src;
+        A.waitingVideo = null;
+        if (oldVideo && A.stale.indexOf(oldVideo) === -1) A.stale.push(oldVideo);
+        sweepStaleSources();
+    }
+
+    function wakeCtx() {
+        if (A.idleT) {
+            clearTimeout(A.idleT);
+            A.idleT = 0;
+        }
+        const ctx = A.ctx;
+        if (ctx && ctx.state !== 'running' && ctx.state !== 'closed') ctx.resume().catch(() => {});
+    }
+
+    // A running context keeps the audio thread rendering silence; stop it after a short idle pause.
+    function armIdleSuspend() {
+        // Not rendering already; onCtxStateChange re-arms if a resume lands while paused.
+        if (!A.ctx || A.ctx.state !== 'running') return;
+        if (A.idleT) clearTimeout(A.idleT);
+        A.idleT = setTimeout(() => {
+            A.idleT = 0;
+            const ctx = A.ctx;
+            const v = A.video;
+            if (!ctx || ctx.state !== 'running' || A.pending) return;
+            if (v && (!v.paused || v.seeking)) return;
+            sweepStaleSources();
+            ctx.suspend().catch(() => {});
+        }, 3000);
+    }
+
+    function onCtxStateChange() {
+        const ctx = A.ctx;
+        if (!ctx || ctx.state !== 'running') return;
+        A.ctxStarted = true;
+        const waiting = A.waitingVideo;
+        if (waiting) {
+            A.waitingVideo = null;
+            if (waiting.isConnected && !waiting.paused) initAudioGraph(waiting);
+        }
+        const v = A.video;
+        if (!A.idleT && !A.pending && (!v || v.paused)) armIdleSuspend();
+    }
+
+    // Only resumes for media that is actually playing; a click while paused must not undo
+    // the idle suspend.
+    function unlockAudio() {
+        const ctx = A.ctx;
+        if (!ctx || ctx.state === 'running' || ctx.state === 'closed') return;
+        const v = A.waitingVideo || A.video;
+        if (v && !v.paused) ctx.resume().catch(() => {});
+    }
+
+    function formatDb(val) {
+        return (val > 0 ? '+' : '') + val + ' dB';
+    }
+
+    function saveEqSettings() {
+        lsSet('ytr_eq_gains', JSON.stringify(A.gains));
+        lsSet('ytr_eq_preset', A.presetName);
+    }
+
+    let eqRaf = 0;
+    const eqQueuedBands = [];
+
+    function flushEqBands() {
+        eqRaf = 0;
+        for (let k = 0; k < eqQueuedBands.length; k++) {
+            const i = eqQueuedBands[k];
+            refreshEqAudio(i);
+            const dbText = document.getElementById(`ytr-eq-db-${i}`);
+            if (dbText) dbText.textContent = formatDb(A.gains[i]);
+        }
+        eqQueuedBands.length = 0;
+    }
+
+    function queueEqBand(i) {
+        if (eqQueuedBands.indexOf(i) === -1) eqQueuedBands.push(i);
+        if (!eqRaf) eqRaf = requestAnimationFrame(flushEqBands);
     }
 
     function applyEqGains(gains, presetName) {
-        const A = window.__ytr_audio;
+        if (eqRaf) {
+            cancelAnimationFrame(eqRaf);
+            eqRaf = 0;
+            eqQueuedBands.length = 0;
+        }
         A.gains = [...gains];
         if (presetName) A.presetName = presetName;
-        localStorage.setItem('ytr_eq_gains', JSON.stringify(A.gains));
-        if (presetName) localStorage.setItem('ytr_eq_preset', A.presetName);
-
-        const filters = A.filters || window.__ytr_eqFilters;
-        const actx = A.ctx || window.__ytr_audioCtx;
-        if (actx && filters && filters.length === 10) {
-            const now = actx.currentTime;
-            for (let i = 0; i < 10; i++) {
-                const target = A.masterEnabled ? A.gains[i] : 0.0;
-                try {
-                    filters[i].gain.cancelScheduledValues(now);
-                    filters[i].gain.setValueAtTime(filters[i].gain.value, now);
-                    filters[i].gain.linearRampToValueAtTime(target, now + 0.05);
-                } catch (_) {
-                    filters[i].gain.value = target;
-                }
-            }
-        }
+        lsSet('ytr_eq_gains', JSON.stringify(A.gains));
+        if (presetName) lsSet('ytr_eq_preset', A.presetName);
+        refreshEqAudio(-1);
         updateEqualizerModalUI();
         updateEqButtonUI();
     }
 
     function setEqMasterEnabled(enabled) {
-        const A = window.__ytr_audio;
-        A.masterEnabled = enabled;
-        localStorage.setItem('ytr_eq_enabled', enabled ? 'true' : 'false');
+        A.masterEnabled = !!enabled;
+        lsSet('ytr_eq_enabled', A.masterEnabled ? 'true' : 'false');
         applyEqGains(A.gains, A.presetName);
-        updateEqualizerModalUI();
-        updateEqButtonUI();
     }
 
     function updateEqButtonUI() {
-        const A = window.__ytr_audio;
         const btn = document.getElementById('ytr-btn-eq');
         const text = document.getElementById('ytr-btn-eq-text');
         if (!btn) return;
@@ -916,7 +1402,8 @@
     }
 
     function updateEqualizerModalUI() {
-        const A = window.__ytr_audio;
+        const overlay = document.getElementById('ytr-eq-overlay');
+        if (!overlay) return;
         const badge = document.getElementById('ytr-eq-preset-badge');
         if (badge) badge.textContent = A.presetName;
 
@@ -927,7 +1414,7 @@
             else toggleBtn.classList.remove('ytr-active');
         }
 
-        const chips = document.querySelectorAll('.ytr-eq-preset-chip');
+        const chips = overlay.querySelectorAll('.ytr-eq-preset-chip');
         chips.forEach(chip => {
             const pName = chip.getAttribute('data-preset');
             if (pName === A.presetName) chip.classList.add('ytr-selected');
@@ -942,7 +1429,7 @@
                 slider.value = String(val);
             }
             if (dbText) {
-                dbText.textContent = (val > 0 ? '+' : '') + val + ' dB';
+                dbText.textContent = formatDb(val);
             }
         }
     }
@@ -963,8 +1450,8 @@
     function buildEqualizerModal() {
         let overlay = document.getElementById('ytr-eq-overlay');
         if (overlay) return overlay;
+        if (!document.body) return null;
 
-        const A = window.__ytr_audio;
         overlay = createEl('div', { id: 'ytr-eq-overlay' });
         const modal = createEl('div', { id: 'ytr-eq-modal' });
 
@@ -976,7 +1463,7 @@
         ]);
         const titleSpan = createEl('span', { className: 'ytr-eq-title' });
         titleSpan.appendChild(titleSvg);
-        titleSpan.appendChild(document.createTextNode('Dolby Audio Equalizer'));
+        titleSpan.appendChild(document.createTextNode('Studio Equalizer'));
         const badge = createEl('span', { id: 'ytr-eq-preset-badge', className: 'ytr-eq-badge' }, A.presetName);
         titleGrp.appendChild(titleSpan);
         titleGrp.appendChild(badge);
@@ -988,7 +1475,7 @@
             title: 'Master Equalizer Toggle'
         }, A.masterEnabled ? '\u2713 EQ: ON' : '\u25CB EQ: OFF');
         toggleBtn.addEventListener('click', () => {
-            setEqMasterEnabled(!window.__ytr_audio.masterEnabled);
+            setEqMasterEnabled(!A.masterEnabled);
         });
 
         const closeBtn = createEl('button', { className: 'ytr-eq-close-btn', title: 'Close (Esc)' }, '\u2715');
@@ -1002,16 +1489,16 @@
 
         // 2. Presets Row
         const presetsWrap = createEl('div', { className: 'ytr-eq-presets-wrap' });
-        const presetsLabel = createEl('div', { className: 'ytr-eq-presets-label' }, 'Dolby Studio Presets');
+        const presetsLabel = createEl('div', { className: 'ytr-eq-presets-label' }, 'Presets');
         const presetsRow = createEl('div', { className: 'ytr-eq-presets-row' });
 
-        for (const pName in DOLBY_PRESETS) {
+        for (const pName in EQ_PRESETS) {
             const chip = createEl('button', {
                 className: 'ytr-eq-preset-chip' + (pName === A.presetName ? ' ytr-selected' : ''),
                 'data-preset': pName
             }, pName);
             chip.addEventListener('click', () => {
-                applyEqGains(DOLBY_PRESETS[pName], pName);
+                applyEqGains(EQ_PRESETS[pName], pName);
             });
             presetsRow.appendChild(chip);
         }
@@ -1023,7 +1510,7 @@
         for (let i = 0; i < 10; i++) {
             const col = createEl('div', { className: 'ytr-eq-col' });
             const val = A.gains[i];
-            const dbText = createEl('span', { id: `ytr-eq-db-${i}`, className: 'ytr-eq-db' }, (val > 0 ? '+' : '') + val + ' dB');
+            const dbText = createEl('span', { id: `ytr-eq-db-${i}`, className: 'ytr-eq-db' }, formatDb(val));
             const slider = createEl('input', {
                 id: `ytr-eq-slider-${i}`,
                 type: 'range',
@@ -1035,11 +1522,19 @@
                 className: 'ytr-eq-slider',
                 title: `${EQ_FREQ_LABELS[i]}Hz (${val} dB)`
             });
+            // Drag updates are applied once per frame; storage is written on release.
             slider.addEventListener('input', (e) => {
-                const newGains = [...window.__ytr_audio.gains];
-                newGains[i] = parseFloat(e.target.value);
-                applyEqGains(newGains, 'Custom');
+                const v = parseFloat(e.target.value);
+                if (!Number.isFinite(v)) return;
+                A.gains[i] = v;
+                if (A.presetName !== 'Custom') {
+                    A.presetName = 'Custom';
+                    updateEqualizerModalUI();
+                    updateEqButtonUI();
+                }
+                queueEqBand(i);
             });
+            slider.addEventListener('change', saveEqSettings);
             const freqText = createEl('span', { className: 'ytr-eq-freq' }, EQ_FREQ_LABELS[i]);
 
             col.appendChild(dbText);
@@ -1053,7 +1548,7 @@
         const hint = createEl('span', {}, '10-Band Biquad Studio Equalizer \u2022 32Hz - 16kHz \u2022 64-bit Audio DSP');
         const resetBtn = createEl('button', { className: 'ytr-eq-reset-btn' }, 'Reset to Flat (0 dB)');
         resetBtn.addEventListener('click', () => {
-            applyEqGains(DOLBY_PRESETS['Flat'], 'Flat');
+            applyEqGains(EQ_PRESETS['Flat'], 'Flat');
         });
         footer.appendChild(hint);
         footer.appendChild(resetBtn);
@@ -1069,13 +1564,13 @@
             if (e.target === overlay) overlay.classList.remove('ytr-open');
         });
 
+        // #ytr-eq-overlay { display: none } lives in this sheet, so it must exist before the overlay.
+        ensureEqStyles();
         document.body.appendChild(overlay);
         return overlay;
     }
 
     // --- Studio-Grade Smooth Audio Transitions & Playback Control ---
-    let smoothAudioEnabled = localStorage.getItem('ytr_smooth_audio') === 'true';
-
     function updateSmoothAudioUI() {
         try {
             const item = document.getElementById('ytr-menu-fade');
@@ -1107,90 +1602,194 @@
         } catch (_) {}
     }
 
-    function playerPlayPause() {
-        const mp = document.querySelector('#movie_player');
-        const v = document.querySelector('video');
-        const A = window.__ytr_audio;
-
-        if (mp && typeof mp.getPlayerState === 'function') {
-            const state = mp.getPlayerState(); // 1 = playing, 2 = paused
-            if (state === 1) { // playing -> pause
-                if (smoothAudioEnabled && A && A.ctx && A.fadeGain) {
-                    const now = A.ctx.currentTime;
-                    A.fadeGain.gain.cancelScheduledValues(now);
-                    A.fadeGain.gain.setValueAtTime(A.fadeGain.gain.value, now);
-                    A.fadeGain.gain.linearRampToValueAtTime(0.001, now + 0.16);
-                    setTimeout(() => {
-                        try { mp.pauseVideo(); } catch (_) {}
-                        if (A.ctx && A.fadeGain) A.fadeGain.gain.setValueAtTime(1.0, A.ctx.currentTime);
-                    }, 170);
-                } else {
-                    mp.pauseVideo();
-                }
-            } else { // paused -> play
-                if (smoothAudioEnabled && A && A.ctx && A.fadeGain) {
-                    const now = A.ctx.currentTime;
-                    A.fadeGain.gain.cancelScheduledValues(now);
-                    A.fadeGain.gain.setValueAtTime(0.001, now);
-                    mp.playVideo();
-                    A.fadeGain.gain.linearRampToValueAtTime(1.0, now + 0.20);
-                } else {
-                    mp.playVideo();
-                }
-            }
-        } else if (v) {
-            v.paused ? v.play() : v.pause();
+    function toggleSmoothAudio() {
+        smoothAudioEnabled = !smoothAudioEnabled;
+        lsSet('ytr_smooth_audio', smoothAudioEnabled ? 'true' : 'false');
+        if (!smoothAudioEnabled) {
+            // A pause or skip fade in flight would otherwise leave the gain parked low.
+            flushPending();
+            if (A.fadeGain && A.fadeGain.gain.value < 0.99) rampFade(1.0, 0.03);
         }
+        updateSmoothAudioUI();
+    }
+
+    function inFadeGraph(v) {
+        return !!(A.fadeGain && v && A.video === v);
+    }
+
+    // After a fade-out the gain stays low until playback starts again ('play' handler).
+    function fadeInOnPlay(v) {
+        if (!inFadeGraph(v) || A.pending) return;
+        const now = A.ctx.currentTime;
+        if (smoothAudioEnabled) {
+            // playerPlayPause may already have started this ramp.
+            if (A.fadeInAt >= 0 && now - A.fadeInAt < 0.25) return;
+            rampFade(1.0, 0.20, 0.001);
+            A.fadeInAt = now;
+        } else if (A.fadeGain.gain.value < 0.99) {
+            rampFade(1.0, 0.03);
+        }
+    }
+
+    // Recovery for track changes that start without a 'play' event (e.g. previous restarting the song).
+    function ensureAudible(v) {
+        if (!inFadeGraph(v) || A.pending || v.paused) return;
+        const now = A.ctx.currentTime;
+        if (A.fadeInAt >= 0 && now - A.fadeInAt < 0.5) return;
+        if (A.fadeGain.gain.value < 0.5) {
+            rampFade(1.0, smoothAudioEnabled ? 0.20 : 0.03);
+            A.fadeInAt = now;
+        }
+    }
+
+    function playerPause(mp, v) {
+        if (mp && typeof mp.pauseVideo === 'function') mp.pauseVideo();
+        else if (v) v.pause();
+    }
+
+    function playerResume(mp, v) {
+        if (mp && typeof mp.playVideo === 'function') {
+            mp.playVideo();
+        } else if (v) {
+            const p = v.play();
+            if (p && typeof p.catch === 'function') p.catch(() => {});
+        }
+    }
+
+    function skipNow(kind) {
+        const mp = getPlayer();
+        const fn = kind === 'next' ? 'nextVideo' : 'previousVideo';
+        if (mp && typeof mp[fn] === 'function') {
+            mp[fn]();
+            return;
+        }
+        const btn = document.querySelector(kind === 'next'
+            ? '.next-button.ytmusic-player-bar, #next-button'
+            : '.previous-button.ytmusic-player-bar, #previous-button');
+        if (btn) btn.click();
+    }
+
+    function runSkips(kind, count) {
+        skipNow(kind);
+        for (let i = 1; i < count; i++) {
+            setTimeout(() => skipNow(kind), 120 * i);
+        }
+        if (A.fadeGain && A.fadeGain.gain.value < 0.5) {
+            setTimeout(() => ensureAudible(getMainVideo()), 120 * count + 600);
+        }
+    }
+
+    // Identifies the playing track, so a deferred skip can tell whether the track already changed.
+    function trackKey() {
+        try {
+            const mp = getPlayer();
+            const d = mp && typeof mp.getVideoData === 'function' ? mp.getVideoData() : null;
+            if (d && d.video_id) return d.video_id;
+        } catch (_) {}
+        const v = getMainVideo();
+        return v ? v.currentSrc : '';
+    }
+
+    // A skip deferred behind the fade-out is spent if the track changed meanwhile (auto-advance,
+    // a click in the queue), otherwise it would skip the new track unheard.
+    function runDeferredSkips(p) {
+        let n = p.count;
+        if (p.kind === 'next' && p.track && trackKey() !== p.track) n--;
+        if (n > 0) runSkips(p.kind, n);
+        else ensureAudible(getMainVideo());
+    }
+
+    function flushPending() {
+        const p = A.pending;
+        if (!p) return;
+        clearTimeout(p.timer);
+        A.pending = null;
+        if (p.kind === 'pause') playerPause(getPlayer(), getVideo());
+        else runDeferredSkips(p);
+    }
+
+    function playerPlayPause() {
+        const pend = A.pending;
+        if (pend) {
+            if (pend.kind === 'pause') {
+                // Second press inside the fade-out: the latest intent is to keep playing.
+                clearTimeout(pend.timer);
+                A.pending = null;
+                rampFade(1.0, 0.08);
+                return;
+            }
+            flushPending();
+        }
+
+        const mp = getPlayer();
+        const v = getVideo();
+        let playing;
+        if (v) {
+            playing = !v.paused;
+        } else if (mp && typeof mp.getPlayerState === 'function') {
+            const state = mp.getPlayerState(); // 1 = playing, 3 = buffering (a play is in progress)
+            playing = state === 1 || state === 3;
+        } else {
+            return;
+        }
+
+        if (playing) {
+            if (smoothAudioEnabled && inFadeGraph(v)) {
+                rampFade(0.001, 0.16);
+                A.pending = {
+                    kind: 'pause',
+                    timer: setTimeout(() => {
+                        A.pending = null;
+                        try { playerPause(getPlayer(), getVideo()); } catch (_) {}
+                    }, 170)
+                };
+            } else {
+                playerPause(mp, v);
+            }
+        } else {
+            // Resume is fire-and-forget: gating playVideo on it could block playback forever.
+            wakeCtx();
+            if (smoothAudioEnabled && inFadeGraph(v)) {
+                rampFade(1.0, 0.20, 0.001);
+                A.fadeInAt = A.ctx.currentTime;
+            }
+            playerResume(mp, v);
+        }
+    }
+
+    function playerSkip(kind) {
+        const pend = A.pending;
+        if (pend) {
+            if (pend.kind === kind) {
+                pend.count++;
+                return;
+            }
+            flushPending();
+        }
+        const v = getVideo();
+        if (!smoothAudioEnabled || !inFadeGraph(v) || v.paused) {
+            runSkips(kind, 1);
+            return;
+        }
+        rampFade(0.001, 0.14);
+        A.pending = {
+            kind: kind,
+            count: 1,
+            track: trackKey(),
+            timer: setTimeout(() => {
+                const p = A.pending;
+                A.pending = null;
+                try { runDeferredSkips(p || { kind: kind, count: 1, track: '' }); } catch (_) {}
+            }, 150)
+        };
     }
 
     function playerNext() {
-        const mp = document.querySelector('#movie_player');
-        const A = window.__ytr_audio;
-        if (smoothAudioEnabled && A && A.ctx && A.fadeGain) {
-            const now = A.ctx.currentTime;
-            A.fadeGain.gain.cancelScheduledValues(now);
-            A.fadeGain.gain.setValueAtTime(A.fadeGain.gain.value, now);
-            A.fadeGain.gain.linearRampToValueAtTime(0.001, now + 0.14);
-            setTimeout(() => {
-                if (mp && typeof mp.nextVideo === 'function') mp.nextVideo();
-                else {
-                    const btn = document.querySelector('.next-button.ytmusic-player-bar, #next-button');
-                    if (btn) btn.click();
-                }
-                if (A.ctx && A.fadeGain) A.fadeGain.gain.setValueAtTime(1.0, A.ctx.currentTime);
-            }, 150);
-        } else {
-            if (mp && typeof mp.nextVideo === 'function') mp.nextVideo();
-            else {
-                const btn = document.querySelector('.next-button.ytmusic-player-bar, #next-button');
-                if (btn) btn.click();
-            }
-        }
+        playerSkip('next');
     }
 
     function playerPrev() {
-        const mp = document.querySelector('#movie_player');
-        const A = window.__ytr_audio;
-        if (smoothAudioEnabled && A && A.ctx && A.fadeGain) {
-            const now = A.ctx.currentTime;
-            A.fadeGain.gain.cancelScheduledValues(now);
-            A.fadeGain.gain.setValueAtTime(A.fadeGain.gain.value, now);
-            A.fadeGain.gain.linearRampToValueAtTime(0.001, now + 0.14);
-            setTimeout(() => {
-                if (mp && typeof mp.previousVideo === 'function') mp.previousVideo();
-                else {
-                    const btn = document.querySelector('.previous-button.ytmusic-player-bar, #previous-button');
-                    if (btn) btn.click();
-                }
-                if (A.ctx && A.fadeGain) A.fadeGain.gain.setValueAtTime(1.0, A.ctx.currentTime);
-            }, 150);
-        } else {
-            if (mp && typeof mp.previousVideo === 'function') mp.previousVideo();
-            else {
-                const btn = document.querySelector('.previous-button.ytmusic-player-bar, #previous-button');
-                if (btn) btn.click();
-            }
-        }
+        playerSkip('prev');
     }
 
     window.__ytr_playerPlayPause = playerPlayPause;
@@ -1201,7 +1800,10 @@
     window.__ytr_smoothPrev = playerPrev;
     window.__ytr_toggleEqualizer = toggleEqualizerModal;
     window.__ytr_setEqMaster = setEqMasterEnabled;
-    window.__ytr_applyPreset = (p) => applyEqGains(DOLBY_PRESETS[p] || DOLBY_PRESETS['Flat'], p);
+    window.__ytr_applyPreset = (p) => {
+        if (LEGACY_PRESETS[p]) p = LEGACY_PRESETS[p];
+        applyEqGains(EQ_PRESETS[p] || EQ_PRESETS['Flat'], EQ_PRESETS[p] ? p : 'Flat');
+    };
 
     function installTopBarUI() {
         try {
@@ -1210,7 +1812,7 @@
 
             let bar = document.getElementById('ytmd-title-bar-main-panel');
             if (bar) {
-                if (document.body && bar.parentElement !== document.body) {
+                if (bar.parentElement !== document.body) {
                     document.body.prepend(bar);
                 }
                 return;
@@ -1266,7 +1868,7 @@
             const btnEq = createEl('button', {
                 className: 'ytr-nav-btn',
                 id: 'ytr-btn-eq',
-                title: 'Dolby Audio Equalizer & Studio Presets (Click to Open)',
+                title: 'Studio Equalizer & Presets (Click to Open)',
                 style: 'width: auto; padding: 0 8px; gap: 5px; display: inline-flex; align-items: center; border-radius: 4px; transition: all 0.2s ease;'
             });
             const eqSvg = createSvg(12, 12, '0 0 24 24', [
@@ -1303,7 +1905,6 @@
 
             const fileDd = makeDropdown('File', [
                 { id: 'ytr-menu-pip', text: 'Desktop Miniplayer (Ctrl+Alt+M)' },
-                { id: 'ytr-menu-trim', text: 'Trim RAM Compaction' },
                 'divider',
                 { id: 'ytr-menu-quit', text: 'Quit' }
             ]);
@@ -1319,7 +1920,7 @@
                 { id: 'ytr-menu-like', text: 'Like Track (L)' },
                 'divider',
                 { id: 'ytr-menu-fade', text: 'Smooth Audio (Fade): OFF' },
-                { id: 'ytr-menu-eq', text: 'Dolby Equalizer (EQ)...' }
+                { id: 'ytr-menu-eq', text: 'Studio Equalizer (EQ)...' }
             ]);
 
             menuItems.appendChild(fileDd);
@@ -1376,16 +1977,9 @@
             bar.querySelector('#ytr-btn-reload')?.addEventListener('click', () => window.location.reload());
             bar.querySelector('#ytr-btn-search')?.addEventListener('click', focusSearchBox);
 
-            function sendAppMsg(obj) {
-                if (window.chrome && window.chrome.webview) {
-                    window.chrome.webview.postMessage(JSON.stringify(obj));
-                }
-            }
-
-            bar.querySelector('#ytr-menu-pip')?.addEventListener('click', () => sendAppMsg({ type: 'enter_pip' }));
-            bar.querySelector('#ytr-pip-btn')?.addEventListener('click', () => sendAppMsg({ type: 'enter_pip' }));
-            bar.querySelector('#ytr-menu-trim')?.addEventListener('click', () => sendAppMsg({ type: 'trim_memory' }));
-            bar.querySelector('#ytr-menu-quit')?.addEventListener('click', () => sendAppMsg({ type: 'quit' }));
+            bar.querySelector('#ytr-menu-pip')?.addEventListener('click', () => postToHost({ type: 'enter_pip' }));
+            bar.querySelector('#ytr-pip-btn')?.addEventListener('click', () => postToHost({ type: 'enter_pip' }));
+            bar.querySelector('#ytr-menu-quit')?.addEventListener('click', () => postToHost({ type: 'quit' }));
 
             bar.querySelector('#ytr-menu-home')?.addEventListener('click', () => {
                 const el = document.querySelector('ytmusic-pivot-bar-item-renderer:nth-child(1), a[href="/"]');
@@ -1407,17 +2001,6 @@
                 const btn = document.querySelector('#like-button-renderer yt-button-shape button, .ytmusic-like-button-renderer button, ytmusic-like-button-renderer tp-yt-paper-icon-button');
                 if (btn) btn.click();
             });
-            function toggleSmoothAudio() {
-                smoothAudioEnabled = !smoothAudioEnabled;
-                localStorage.setItem('ytr_smooth_audio', smoothAudioEnabled ? 'true' : 'false');
-                updateSmoothAudioUI();
-                if (window.chrome && window.chrome.webview) {
-                    window.chrome.webview.postMessage(JSON.stringify({
-                        type: 'log',
-                        message: 'Smooth Audio toggled: ' + (smoothAudioEnabled ? 'ON' : 'OFF')
-                    }));
-                }
-            }
 
             bar.querySelector('#ytr-btn-smooth')?.addEventListener('click', toggleSmoothAudio);
             bar.querySelector('#ytr-menu-fade')?.addEventListener('click', toggleSmoothAudio);
@@ -1426,214 +2009,439 @@
 
             updateSmoothAudioUI();
             updateEqButtonUI();
-            buildEqualizerModal();
 
             document.body.prepend(bar);
-
-            if (window.chrome && window.chrome.webview) {
-                window.chrome.webview.postMessage(JSON.stringify({
-                    type: 'log',
-                    message: 'TopBar successfully inserted into document.body!'
-                }));
-            }
+            refreshTicker();
         } catch (err) {
-            if (window.chrome && window.chrome.webview) {
-                window.chrome.webview.postMessage(JSON.stringify({
-                    type: 'log',
-                    message: 'TopBar install error: ' + (err && err.message)
-                }));
-            }
+            logToHost('TopBar install error: ' + (err && err.message));
         }
+    }
+
+    // Top bar and sidebar upkeep: observer driven, and skipped entirely while the page is hidden.
+    let bodyObs = null;
+    let bodyObsTarget = null;
+    let topBarRaf = 0;
+
+    function ensureTopBar() {
+        if (!document.body) return;
+        const bar = document.getElementById('ytmd-title-bar-main-panel');
+        if (bar && bar.parentElement === document.body) return;
+        installTopBarUI();
+    }
+
+    function onBodyChildren() {
+        if (document.hidden || topBarRaf) return;
+        topBarRaf = requestAnimationFrame(() => {
+            topBarRaf = 0;
+            ensureTopBar();
+        });
+    }
+
+    function startBodyObserver() {
+        const body = document.body;
+        if (!body || body === bodyObsTarget) return;
+        if (!bodyObs) bodyObs = new MutationObserver(onBodyChildren);
+        bodyObs.disconnect();
+        bodyObs.observe(body, { childList: true });
+        bodyObsTarget = body;
     }
 
     // 5. Track metadata and state reporter
-    let lastTitle = '';
-    let lastArtist = '';
-    let lastPaused = true;
-    let lastTime = 0;
-    let lastLiked = false;
-    let lastDisliked = false;
+    const last = {
+        title: null,
+        artist: null,
+        artwork: null,
+        paused: null,
+        liked: null,
+        disliked: null,
+        time: -1,
+        duration: -1,
+        volume: -1
+    };
+    let stateTimer = 0;
+    let stateDue = 0;
+    let lastTickSec = -1;
 
-    function sendState(force = false) {
+    function flushState() {
+        stateTimer = 0;
+        sendState(false);
+    }
+
+    // Coalesces bursts of media/DOM events into one sendState; a shorter delay pre-empts a longer one.
+    function queueState(delay) {
+        const due = performance.now() + delay;
+        if (stateTimer) {
+            if (due >= stateDue) return;
+            clearTimeout(stateTimer);
+        }
+        stateDue = due;
+        stateTimer = setTimeout(flushState, delay);
+    }
+
+    let barRef = null;
+    const barParts = { title: null, byline: null, image: null, like: null };
+    const observedParts = { title: null, byline: null, image: null, like: null };
+    let stateObs = null;
+
+    function getPlayerBar() {
+        if (barRef && barRef.isConnected) return barRef;
+        barRef = document.querySelector('ytmusic-player-bar');
+        return barRef;
+    }
+
+    function resolveBarPart(key, selector, bar) {
+        const cur = barParts[key];
+        if (cur && cur.isConnected) return;
+        barParts[key] = bar ? bar.querySelector(selector) : null;
+    }
+
+    function refreshBarParts(allowDocumentLike) {
+        const bar = getPlayerBar();
+        resolveBarPart('title', '.title', bar);
+        resolveBarPart('byline', '.byline', bar);
+        resolveBarPart('image', '.image', bar);
+        resolveBarPart('like', 'ytmusic-like-button-renderer, #like-button-renderer', bar);
+        if (!barParts.like && allowDocumentLike) {
+            barParts.like = document.querySelector('ytmusic-like-button-renderer, #like-button-renderer');
+        }
+        return barParts;
+    }
+
+    function onPlayerBarMutation() {
+        queueState(50);
+    }
+
+    function attachStateObservers() {
+        const parts = refreshBarParts(true);
+        if (parts.title === observedParts.title && parts.byline === observedParts.byline &&
+            parts.image === observedParts.image && parts.like === observedParts.like) {
+            return !!parts.title;
+        }
+        if (!stateObs) stateObs = new MutationObserver(onPlayerBarMutation);
+        stateObs.disconnect();
+        const textOpts = { childList: true, characterData: true, subtree: true };
+        if (parts.title) stateObs.observe(parts.title, textOpts);
+        if (parts.byline) stateObs.observe(parts.byline, textOpts);
+        if (parts.image) stateObs.observe(parts.image, { attributes: true, attributeFilter: ['src'] });
+        if (parts.like) stateObs.observe(parts.like, { attributes: true, attributeFilter: ['like-status'] });
+        observedParts.title = parts.title;
+        observedParts.byline = parts.byline;
+        observedParts.image = parts.image;
+        observedParts.like = parts.like;
+        return !!parts.title;
+    }
+
+    let tickerRef = null;
+    let tickerText = null;
+
+    function updateTicker(title, artist, isLiked) {
+        if (document.hidden) return;
+        if (!tickerRef || !tickerRef.isConnected) {
+            tickerRef = document.getElementById('ytr-topbar-ticker');
+            tickerText = null;
+            if (!tickerRef) return;
+        }
+        const likeBadge = isLiked ? ' \u2665' : '';
+        let text;
+        if (title && artist) {
+            text = `\uD83C\uDFB5 ${title} \u2014 ${artist}${likeBadge}`;
+        } else if (title) {
+            text = `\uD83C\uDFB5 ${title}${likeBadge}`;
+        } else {
+            text = '\uD83C\uDFB5 Ready to Play';
+        }
+        if (text !== tickerText) {
+            tickerText = text;
+            tickerRef.textContent = text;
+        }
+    }
+
+    function refreshTicker() {
+        updateTicker(last.title || '', last.artist || '', !!last.liked);
+    }
+
+    function readVolume(video) {
         try {
-            const video = document.querySelector('video');
+            const player = getPlayer();
+            if (player && typeof player.getVolume === 'function') {
+                const pv = player.getVolume();
+                if (typeof pv === 'number' && !isNaN(pv)) return Math.round(pv);
+            } else if (video && typeof video.volume === 'number') {
+                return Math.round(Math.sqrt(video.volume) * 100);
+            }
+        } catch (_) {}
+        return 100;
+    }
+
+    function sendState(force) {
+        try {
+            const video = getVideo();
             const media = navigator.mediaSession ? navigator.mediaSession.metadata : null;
+            const parts = refreshBarParts(false);
 
-            const titleEl = document.querySelector('ytmusic-player-bar .title');
-            const artistEl = document.querySelector('ytmusic-player-bar .byline');
-            const imgEl = document.querySelector('ytmusic-player-bar .image');
+            let title = (media && media.title) ? media.title : '';
+            let artist = (media && media.artist) ? media.artist : '';
+            let artwork = '';
+            if (media) {
+                const art = media.artwork;
+                if (art && art.length) artwork = art[art.length - 1].src || '';
+            }
+            if (!title && parts.title) title = parts.title.textContent.trim();
+            if (!artist && parts.byline) artist = parts.byline.textContent.trim();
+            if (!artwork && parts.image) artwork = parts.image.src || '';
 
-            const title = (media && media.title) ? media.title : (titleEl ? titleEl.textContent.trim() : '');
-            const artist = (media && media.artist) ? media.artist : (artistEl ? artistEl.textContent.trim() : '');
-            const artwork = (media && media.artwork && media.artwork.length) ? media.artwork[media.artwork.length - 1].src : (imgEl ? imgEl.src : '');
             const paused = video ? video.paused : true;
-            const curTime = video ? Math.floor(video.currentTime) : 0;
+            const time = video ? Math.floor(video.currentTime) : 0;
             const duration = video && isFinite(video.duration) ? Math.floor(video.duration) : 0;
-
-            let volume = 100;
-            try {
-                const player = document.querySelector('#movie_player');
-                if (player && typeof player.getVolume === 'function') {
-                    const pv = player.getVolume();
-                    if (typeof pv === 'number' && !isNaN(pv)) volume = Math.round(pv);
-                } else if (video && typeof video.volume === 'number') {
-                    volume = Math.round(Math.sqrt(video.volume) * 100);
-                }
-            } catch (_) {}
-
-            const likeRenderer = document.querySelector('ytmusic-like-button-renderer, #like-button-renderer');
-            const likeStatus = likeRenderer ? likeRenderer.getAttribute('like-status') : '';
+            const volume = readVolume(video);
+            const likeStatus = parts.like ? parts.like.getAttribute('like-status') : '';
             const isLiked = likeStatus === 'LIKE';
             const isDisliked = likeStatus === 'DISLIKE';
 
-            // Update topbar song ticker
-            const ticker = document.getElementById('ytr-topbar-ticker');
-            if (ticker) {
-                const likeBadge = isLiked ? ' \u2665' : '';
-                if (title && artist) {
-                    ticker.textContent = `\uD83C\uDFB5 ${title} \u2014 ${artist}${likeBadge}`;
-                } else if (title) {
-                    ticker.textContent = `\uD83C\uDFB5 ${title}${likeBadge}`;
-                } else {
-                    ticker.textContent = '\uD83C\uDFB5 Ready to Play';
-                }
-            }
+            updateTicker(title, artist, isLiked);
 
-            if (force || title !== lastTitle || artist !== lastArtist || paused !== lastPaused || isLiked !== lastLiked || isDisliked !== lastDisliked || Math.abs(curTime - lastTime) >= 1) {
-                lastTitle = title;
-                lastArtist = artist;
-                lastPaused = paused;
-                lastLiked = isLiked;
-                lastDisliked = isDisliked;
-                lastTime = curTime;
-
-                if (window.chrome && window.chrome.webview) {
-                    window.chrome.webview.postMessage(JSON.stringify({
-                        type: 'state',
-                        title: title || 'Ready to Play',
-                        artist: artist || 'YouTube Music',
-                        artwork: artwork,
-                        paused: paused,
-                        currentTime: curTime,
-                        duration: duration,
-                        volume: volume,
-                        isLiked: isLiked,
-                        isDisliked: isDisliked
-                    }));
-                }
+            if (!force && title === last.title && artist === last.artist && artwork === last.artwork &&
+                paused === last.paused && isLiked === last.liked && isDisliked === last.disliked &&
+                time === last.time && duration === last.duration && volume === last.volume) {
+                return;
             }
+            last.title = title;
+            last.artist = artist;
+            last.artwork = artwork;
+            last.paused = paused;
+            last.liked = isLiked;
+            last.disliked = isDisliked;
+            last.time = time;
+            last.duration = duration;
+            last.volume = volume;
+
+            postToHost({
+                type: 'state',
+                title: title || 'Ready to Play',
+                artist: artist || 'YouTube Music',
+                artwork: artwork,
+                paused: paused,
+                currentTime: time,
+                duration: duration,
+                volume: volume,
+                isLiked: isLiked,
+                isDisliked: isDisliked
+            });
         } catch (_) {}
     }
 
-    // 6. Initialization & Event Wiring
-    let isBridgeInitialized = false;
+    // 6. Media event wiring (document capture). timeupdate is the only per-second path and
+    // returns after one comparison unless the whole second changed.
+    function onMediaPlay(e) {
+        const v = mediaTarget(e);
+        if (!v) return;
+        wakeCtx();
+        try { initAudioGraph(v); } catch (_) {}
+        try { fadeInOnPlay(v); } catch (_) {}
+        queueState(0);
+    }
 
-    function initBridge() {
-        try {
-            ensureStyles();
-            neutralizeAds();
-            installTopBarUI();
-            const initVid = document.querySelector('video');
-            if (initVid) initAudioGraph(initVid);
-            sendState(true);
-        } catch (e) {
-            if (window.chrome && window.chrome.webview) {
-                window.chrome.webview.postMessage(JSON.stringify({ type: 'log', message: 'initBridge error: ' + (e && e.message) }));
+    function onMediaPlaying(e) {
+        const v = mediaTarget(e);
+        if (!v) return;
+        wakeCtx();
+        try { initAudioGraph(v); } catch (_) {}
+        try { ensureAudible(v); } catch (_) {}
+        attachAdObserver();
+        adTick();
+        queueState(0);
+    }
+
+    function onMediaPause(e) {
+        const v = mediaTarget(e);
+        if (!v) return;
+        if (!A.video || A.video === v) armIdleSuspend();
+        queueState(0);
+    }
+
+    function onMediaSeeked(e) {
+        const v = mediaTarget(e);
+        if (!v) return;
+        if (v.paused) {
+            if (!A.video || A.video === v) armIdleSuspend();
+        } else {
+            try { ensureAudible(v); } catch (_) {}
+        }
+        queueState(0);
+    }
+
+    function onMediaLoaded(e) {
+        if (!mediaTarget(e)) return;
+        attachAdObserver();
+        attachStateObservers();
+        // Once per track; covers a guide stamped after the bounded startup wait gave up.
+        attachGuideObserver();
+        adTick();
+        queueState(0);
+    }
+
+    function onMediaDuration(e) {
+        if (!mediaTarget(e)) return;
+        adTick();
+        queueState(30);
+    }
+
+    function onMediaChange(e) {
+        if (!mediaTarget(e)) return;
+        queueState(30);
+    }
+
+    function onMediaVolume(e) {
+        if (!mediaTarget(e)) return;
+        queueState(150);
+    }
+
+    function onTimeUpdate(e) {
+        const v = mediaTarget(e);
+        if (!v) return;
+        const sec = Math.floor(v.currentTime);
+        if (sec === lastTickSec) return;
+        lastTickSec = sec;
+        // The captured element is only audible through the graph: if a resume was lost to the
+        // idle suspend, bring it back (only ever while this element is actually playing).
+        if (A.ctxStarted && A.video === v && !v.paused && A.ctx.state !== 'running') wakeCtx();
+        // Media events are not timer-throttled, so this also drives ad handling while hidden.
+        if (adTimer || isAdNow()) {
+            adTick();
+            return;
+        }
+        ensureAudible(v);
+        if (!v.paused) sendState(false);
+    }
+
+    function onKeyDown(e) {
+        unlockAudio();
+        const path0 = e.composedPath ? e.composedPath()[0] : null;
+        const target = (path0 && path0.nodeType === 1) ? path0 : e.target;
+        const isEditing = !!target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable);
+        if (e.key === 'Escape') {
+            const overlay = document.getElementById('ytr-eq-overlay');
+            if (overlay && overlay.classList.contains('ytr-open')) {
+                overlay.classList.remove('ytr-open');
+                return;
             }
         }
-
-        if (isBridgeInitialized) return;
-        isBridgeInitialized = true;
-
-        if (window.chrome && window.chrome.webview) {
-            window.chrome.webview.postMessage(JSON.stringify({ type: 'log', message: 'Bridge successfully initialized, starting timers' }));
+        if (e.ctrlKey && e.altKey && (e.key === 'e' || e.key === 'E')) {
+            e.preventDefault();
+            if (!e.repeat) toggleEqualizerModal();
+            return;
         }
+        if ((e.ctrlKey && e.key === 'k') || (e.key === '/' && !isEditing)) {
+            e.preventDefault();
+            focusSearchBox();
+            return;
+        }
+        if ((e.code === 'Space' || e.key === ' ') && !isEditing) {
+            // Registered at document start, so this runs before YTM's own Space handling;
+            // auto-repeat would otherwise flap pause/resume.
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            if (!e.repeat) playerPlayPause();
+            return;
+        }
+    }
 
-        setInterval(neutralizeAds, 500);
-        setInterval(installTopBarUI, 1000);
-        setInterval(() => {
-            const vid = document.querySelector('video');
-            if (vid) initAudioGraph(vid);
-            sendState(false);
-        }, 500);
+    // 7. Initialization
+    let bridgeStarted = false;
+    let attachWaitT = 0;
+    let attachWaitStep = 0;
+    const ATTACH_WAIT_MS = [250, 500, 1000, 2000, 4000, 8000, 15000, 30000];
 
+    function attachAll() {
+        const ad = attachAdObserver();
+        const st = attachStateObservers();
+        const guide = attachGuideObserver();
+        return ad && st && guide;
+    }
+
+    // Bounded one-shot wait while YTM stamps the player, player bar and guide.
+    function waitForPlayerParts() {
+        if (attachWaitT || attachAll()) return;
+        if (attachWaitStep >= ATTACH_WAIT_MS.length) return;
+        attachWaitT = setTimeout(() => {
+            attachWaitT = 0;
+            waitForPlayerParts();
+        }, ATTACH_WAIT_MS[attachWaitStep++]);
+    }
+
+    function runUiMaintenance() {
+        ensureStyles();
+        startBodyObserver();
+        ensureTopBar();
+        attachGuideObserver();
+        scheduleGuideScan();
+        refreshTicker();
+    }
+
+    function onVisibilityChange() {
+        if (document.hidden || !bridgeStarted) return;
         try {
-            const unlockAudio = () => {
-                const ctx = window.__ytr_audio && window.__ytr_audio.ctx;
-                if (ctx && ctx.state === 'suspended') {
-                    ctx.resume().catch(() => {});
-                }
-            };
-            window.addEventListener('click', unlockAudio, true);
-            window.addEventListener('keydown', unlockAudio, true);
-
-            document.addEventListener('play', () => {
-                const video = document.querySelector('video');
-                if (video) initAudioGraph(video);
-                unlockAudio();
-                const A = window.__ytr_audio;
-                if (smoothAudioEnabled && A && A.ctx && A.fadeGain) {
-                    const now = A.ctx.currentTime;
-                    A.fadeGain.gain.cancelScheduledValues(now);
-                    A.fadeGain.gain.setValueAtTime(0.001, now);
-                    A.fadeGain.gain.linearRampToValueAtTime(1.0, now + 0.20);
-                }
-                sendState(true);
-            }, true);
-            document.addEventListener('volumechange', () => sendState(false), true);
-            document.addEventListener('pause', () => sendState(true), true);
-            document.addEventListener('loadeddata', () => {
-                const video = document.querySelector('video');
-                if (video) initAudioGraph(video);
-                sendState(true);
-            }, true);
-            document.addEventListener('canplay', () => {
-                const video = document.querySelector('video');
-                if (video) initAudioGraph(video);
-            }, true);
-            document.addEventListener('timeupdate', () => neutralizeAds(), true);
-
-            window.addEventListener('keydown', (e) => {
-                const target = e.target;
-                const isEditing = target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable);
-                if (e.key === 'Escape') {
-                    const overlay = document.getElementById('ytr-eq-overlay');
-                    if (overlay && overlay.classList.contains('ytr-open')) {
-                        overlay.classList.remove('ytr-open');
-                        return;
-                    }
-                }
-                if (e.ctrlKey && e.altKey && (e.key === 'e' || e.key === 'E')) {
-                    e.preventDefault();
-                    toggleEqualizerModal();
-                    return;
-                }
-                if ((e.ctrlKey && e.key === 'k') || (e.key === '/' && !isEditing)) {
-                    e.preventDefault();
-                    focusSearchBox();
-                    return;
-                }
-                if ((e.code === 'Space' || e.key === ' ') && !isEditing) {
-                    e.preventDefault();
-                    playerPlayPause();
-                    return;
-                }
-            }, true);
+            runUiMaintenance();
         } catch (_) {}
+    }
+
+    function initBridge() {
+        if (bridgeStarted) {
+            recheck();
+            return;
+        }
+        bridgeStarted = true;
+        try {
+            ensureStyles();
+            startBodyObserver();
+            if (!document.hidden) ensureTopBar();
+            waitForPlayerParts();
+            adTick();
+            sendState(true);
+            logToHost('Bridge initialized');
+        } catch (e) {
+            logToHost('initBridge error: ' + (e && e.message));
+        }
     }
 
     function recheck() {
+        if (!bridgeStarted) {
+            if (document.readyState !== 'loading') initBridge();
+            return;
+        }
         try {
             ensureStyles();
-            neutralizeAds();
-            installTopBarUI();
-            const v = document.querySelector('video');
-            if (v) initAudioGraph(v);
+            if (!document.hidden) runUiMaintenance();
+            startBodyObserver();
+            attachAll();
+            adTick();
+            if (A.ctx) {
+                const v = getMainVideo();
+                if (v && !v.paused) initAudioGraph(v);
+            }
+            sendState(true);
         } catch (_) {}
     }
     window.__ytr_recheck = recheck;
-
     window.__ytr_init = initBridge;
+
+    try {
+        document.addEventListener('play', onMediaPlay, true);
+        document.addEventListener('playing', onMediaPlaying, true);
+        document.addEventListener('pause', onMediaPause, true);
+        document.addEventListener('seeked', onMediaSeeked, true);
+        document.addEventListener('loadedmetadata', onMediaLoaded, true);
+        document.addEventListener('durationchange', onMediaDuration, true);
+        document.addEventListener('emptied', onMediaChange, true);
+        document.addEventListener('ended', onMediaChange, true);
+        document.addEventListener('ratechange', onMediaChange, true);
+        document.addEventListener('volumechange', onMediaVolume, true);
+        document.addEventListener('timeupdate', onTimeUpdate, true);
+        document.addEventListener('iron-overlay-opened', onOverlayOpened, true);
+        document.addEventListener('visibilitychange', onVisibilityChange);
+        window.addEventListener('click', unlockAudio, true);
+        window.addEventListener('keydown', onKeyDown, true);
+    } catch (_) {}
 
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', initBridge);

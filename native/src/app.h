@@ -26,12 +26,16 @@ struct SongInfo {
 void App_SendControl(const std::wstring& action);
 void App_SeekTo(double seconds);
 void App_SetVolume(int volumePercent);
-void App_TrimWorkingSet();
 void App_OnSongStateUpdated(const SongInfo& song);
+// Called by the engine only when the paused state reported by the page flips.
+void App_OnPagePlaybackChanged(bool pagePaused);
 void App_ToggleMiniplayer();
 void App_ShowMainWindow();
 void App_HideMainWindow();
 void App_Quit();
+// True when launched with --debug (enables DevTools port + debug.log).
+bool App_IsDebugMode();
+// No-op unless App_IsDebugMode().
 void LogBridge(const std::wstring& text);
 
 extern SongInfo g_currentSong;

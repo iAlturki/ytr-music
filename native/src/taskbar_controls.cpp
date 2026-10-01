@@ -10,18 +10,26 @@ TaskbarControls& TaskbarControls::Instance() {
 }
 
 TaskbarControls::TaskbarControls() {
-    m_wmTaskbarCreated = RegisterWindowMessageW(L"TaskbarButtonCreated");
+    m_wmTaskbarButtonCreated = RegisterWindowMessageW(L"TaskbarButtonCreated");
 }
 
 TaskbarControls::~TaskbarControls() {
-    if (m_hIconPlay) DestroyIcon(m_hIconPlay);
-    if (m_hIconPause) DestroyIcon(m_hIconPause);
-    if (m_hIconNext) DestroyIcon(m_hIconNext);
-    if (m_hIconPrev) DestroyIcon(m_hIconPrev);
+    Shutdown();
+}
+
+void TaskbarControls::Shutdown() {
+    // Blocks a late TaskbarButtonCreated from re-creating the interface after this point.
+    m_shutdown = true;
     if (m_pTaskbar) {
         m_pTaskbar->Release();
         m_pTaskbar = nullptr;
     }
+    m_buttonsAdded = false;
+    m_hWnd = nullptr;
+    if (m_hIconPlay) { DestroyIcon(m_hIconPlay); m_hIconPlay = nullptr; }
+    if (m_hIconPause) { DestroyIcon(m_hIconPause); m_hIconPause = nullptr; }
+    if (m_hIconNext) { DestroyIcon(m_hIconNext); m_hIconNext = nullptr; }
+    if (m_hIconPrev) { DestroyIcon(m_hIconPrev); m_hIconPrev = nullptr; }
 }
 
 HICON TaskbarControls::CreateButtonIcon(int type) {
@@ -61,31 +69,56 @@ HICON TaskbarControls::CreateButtonIcon(int type) {
     return hIcon;
 }
 
-void TaskbarControls::Initialize(HWND hWnd) {
-    m_hWnd = hWnd;
-    ChangeWindowMessageFilterEx(hWnd, m_wmTaskbarCreated, MSGFLT_ALLOW, NULL);
-}
-
-void TaskbarControls::OnTaskbarButtonCreated() {
-    if (!m_pTaskbar) {
-        HRESULT hr = CoCreateInstance(CLSID_TaskbarList, NULL, CLSCTX_INPROC_SERVER, IID_ITaskbarList3, (void**)&m_pTaskbar);
-        if (SUCCEEDED(hr) && m_pTaskbar) {
-            m_pTaskbar->HrInit();
-        }
-    }
-
-    if (m_pTaskbar && !m_buttonsAdded) {
-        CreateThumbButtons();
-    }
-}
-
-void TaskbarControls::CreateThumbButtons() {
-    if (!m_pTaskbar || m_buttonsAdded || !m_hWnd) return;
-
+void TaskbarControls::EnsureIcons() {
+    if (m_hIconPlay && m_hIconPause && m_hIconNext && m_hIconPrev) return;
+    // Own GDI+ session (reference counted): only HICONs outlive it, and the button can be
+    // created before anything else has started GDI+.
+    GdiplusStartupInput input;
+    ULONG_PTR token = 0;
+    if (GdiplusStartup(&token, &input, NULL) != Ok) return;
     if (!m_hIconPlay) m_hIconPlay = CreateButtonIcon(0);
     if (!m_hIconPause) m_hIconPause = CreateButtonIcon(1);
     if (!m_hIconNext) m_hIconNext = CreateButtonIcon(2);
     if (!m_hIconPrev) m_hIconPrev = CreateButtonIcon(3);
+    GdiplusShutdown(token);
+}
+
+void TaskbarControls::Initialize(HWND hWnd) {
+    m_hWnd = hWnd;
+    ChangeWindowMessageFilterEx(hWnd, m_wmTaskbarButtonCreated, MSGFLT_ALLOW, NULL);
+}
+
+void TaskbarControls::OnTaskbarButtonCreated() {
+    if (m_shutdown || !m_hWnd) return;
+
+    // Fresh interface per button: the event is rare and this survives an Explorer restart.
+    if (m_pTaskbar) {
+        m_pTaskbar->Release();
+        m_pTaskbar = nullptr;
+    }
+    HRESULT hr = CoCreateInstance(CLSID_TaskbarList, NULL, CLSCTX_INPROC_SERVER, IID_ITaskbarList3, (void**)&m_pTaskbar);
+    if (FAILED(hr) || !m_pTaskbar) {
+        m_pTaskbar = nullptr;
+        return;
+    }
+    if (FAILED(m_pTaskbar->HrInit())) {
+        m_pTaskbar->Release();
+        m_pTaskbar = nullptr;
+        return;
+    }
+
+    // A new button has no thumbnail toolbar, tooltip or progress yet. While paused the page
+    // sends no state ticks, so push the full state now.
+    m_buttonsAdded = false;
+    InvalidateApplied();
+    CreateThumbButtons();
+    UpdateState(g_currentSong);
+}
+
+void TaskbarControls::CreateThumbButtons() {
+    if (!m_pTaskbar || !m_hWnd) return;
+
+    EnsureIcons();
 
     THUMBBUTTON buttons[3] = {};
 
@@ -111,33 +144,65 @@ void TaskbarControls::CreateThumbButtons() {
     buttons[2].dwFlags = THBF_ENABLED;
 
     HRESULT hr = m_pTaskbar->ThumbBarAddButtons(m_hWnd, 3, buttons);
-    if (SUCCEEDED(hr)) {
-        m_buttonsAdded = true;
-    }
+    // Add works once per taskbar button; a repeated notification finds the toolbar already there.
+    if (FAILED(hr)) hr = m_pTaskbar->ThumbBarUpdateButtons(m_hWnd, 3, buttons);
+    m_buttonsAdded = SUCCEEDED(hr);
+    if (m_buttonsAdded) m_appliedPaused = g_currentSong.isPaused ? 1 : 0;
+}
+
+void TaskbarControls::InvalidateApplied() {
+    m_appliedPaused = -1;
+    m_tipApplied = false;
+    m_appliedProgState = -1;
+    m_appliedStep = -1;
 }
 
 void TaskbarControls::UpdateState(const SongInfo& song) {
-    if (!m_pTaskbar || !m_buttonsAdded || !m_hWnd) return;
+    if (!m_pTaskbar || !m_hWnd) return;
+    // Hidden to the tray there is no taskbar button; TaskbarButtonCreated re-pushes on show.
+    if (!IsWindowVisible(m_hWnd)) {
+        InvalidateApplied();
+        return;
+    }
 
-    // Update Play/Pause thumbnail button
-    THUMBBUTTON btn = {};
-    btn.dwMask = THB_ICON | THB_TOOLTIP;
-    btn.iId = THUMB_BTN_PLAYPAUSE;
-    btn.hIcon = song.isPaused ? m_hIconPlay : m_hIconPause;
-    wcscpy_s(btn.szTip, song.isPaused ? L"Play" : L"Pause");
-    m_pTaskbar->ThumbBarUpdateButtons(m_hWnd, 1, &btn);
+    // Play/Pause thumbnail button
+    const int paused = song.isPaused ? 1 : 0;
+    if (m_buttonsAdded && paused != m_appliedPaused) {
+        THUMBBUTTON btn = {};
+        btn.dwMask = THB_ICON | THB_TOOLTIP;
+        btn.iId = THUMB_BTN_PLAYPAUSE;
+        btn.hIcon = song.isPaused ? m_hIconPlay : m_hIconPause;
+        wcscpy_s(btn.szTip, song.isPaused ? L"Play" : L"Pause");
+        if (SUCCEEDED(m_pTaskbar->ThumbBarUpdateButtons(m_hWnd, 1, &btn))) m_appliedPaused = paused;
+    }
 
-    // Update Hover Thumbnail Tooltip
-    std::wstring tip = song.title + L" - " + song.artist;
-    if (tip.length() > 250) tip = tip.substr(0, 247) + L"...";
-    m_pTaskbar->SetThumbnailTooltip(m_hWnd, tip.c_str());
+    // Hover thumbnail tooltip
+    if (!m_tipApplied || song.title != m_appliedTitle || song.artist != m_appliedArtist) {
+        std::wstring tip = song.title + L" - " + song.artist;
+        if (tip.length() > 250) tip = tip.substr(0, 247) + L"...";
+        if (SUCCEEDED(m_pTaskbar->SetThumbnailTooltip(m_hWnd, tip.c_str()))) {
+            m_appliedTitle = song.title;
+            m_appliedArtist = song.artist;
+            m_tipApplied = true;
+        }
+    }
 
-    // Update Taskbar Progress Bar on the icon
-    if (song.duration > 0 && !song.isPaused) {
-        m_pTaskbar->SetProgressState(m_hWnd, TBPF_NORMAL);
-        m_pTaskbar->SetProgressValue(m_hWnd, (ULONGLONG)song.currentTime, (ULONGLONG)song.duration);
-    } else {
-        m_pTaskbar->SetProgressState(m_hWnd, TBPF_NOPROGRESS);
+    // Progress bar on the taskbar icon, in whole percent (finer steps are invisible at that size)
+    const bool showProgress = song.duration > 0 && !song.isPaused;
+    const int progState = showProgress ? TBPF_NORMAL : TBPF_NOPROGRESS;
+    if (progState != m_appliedProgState) {
+        if (FAILED(m_pTaskbar->SetProgressState(m_hWnd, (TBPFLAG)progState))) return;
+        m_appliedProgState = progState;
+        m_appliedStep = -1;
+    }
+    if (showProgress) {
+        double f = song.currentTime / song.duration;
+        if (!(f > 0.0)) f = 0.0;
+        if (f > 1.0) f = 1.0;
+        const int step = (int)(f * 100.0);
+        if (step != m_appliedStep && SUCCEEDED(m_pTaskbar->SetProgressValue(m_hWnd, (ULONGLONG)step, 100))) {
+            m_appliedStep = step;
+        }
     }
 }
 
