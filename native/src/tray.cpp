@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: CC-BY-NC-SA-4.0
+// Copyright (c) 2026 iAlturki
 #include "tray.h"
 #include "../res/resource.h"
 
@@ -31,7 +33,7 @@ bool SystemTray::Initialize(HWND hWndOwner) {
     m_nid.hIcon = (HICON)LoadImageW(hInst, MAKEINTRESOURCEW(IDI_APP_ICON), IMAGE_ICON, GetSystemMetrics(SM_CXSMICON), GetSystemMetrics(SM_CYSMICON), LR_DEFAULTCOLOR);
     if (!m_nid.hIcon) m_nid.hIcon = LoadIconW(hInst, MAKEINTRESOURCEW(IDI_APP_ICON));
     if (!m_nid.hIcon) m_nid.hIcon = LoadIconW(NULL, (LPCWSTR)IDI_APPLICATION);
-    wcscpy_s(m_nid.szTip, L"ytr-music (iALTURKi Native)");
+    wcscpy_s(m_nid.szTip, L"ytr-music (iAlturki Native)");
 
     // m_nid stays fully populated even if this fails (no tray yet at early logon);
     // TaskbarCreated or the next tooltip change adds it later.

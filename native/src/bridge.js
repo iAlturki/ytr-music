@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: CC-BY-NC-SA-4.0
+// Copyright (c) 2026 iAlturki
 (function() {
     // Only the top document hosts the player, top bar and audio graph; child frames
     // (sign-in widgets, embeds) get nothing. Comparing WindowProxies never throws cross-origin.
@@ -2051,7 +2053,7 @@
 
             // Left: brand, history, search
             const topbarLeft = createEl('div', { className: 'ytr-topbar-left' });
-            const brand = createEl('div', { className: 'ytr-topbar-brand', title: 'ytr-music \u2022 iALTURKi Edition' });
+            const brand = createEl('div', { className: 'ytr-topbar-brand', title: 'ytr-music \u2022 iAlturki Edition' });
             brand.appendChild(createSvg(16, 16, '0 0 24 24', [
                 { tag: 'circle', attrs: { cx: '12', cy: '12', r: '11', fill: '#ff0000' } },
                 { tag: 'polygon', attrs: { points: '9.5,7.5 16.5,12 9.5,16.5', fill: '#ffffff' } }
@@ -2112,7 +2114,7 @@
                 href: 'https://github.com/iAlturki/ytr-music',
                 target: '_blank',
                 title: 'ytr-music on GitHub'
-            }, 'ytr-music \u2022 iALTURKi Edition'));
+            }, 'ytr-music \u2022 iAlturki Edition'));
             menu.appendChild(btnMore);
             menu.appendChild(content);
 

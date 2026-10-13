@@ -1,6 +1,13 @@
 <div align="center">
 
-<img src="assets/icon.svg" width="76" alt="">
+<!-- AI setup by iAlturki -->
+<p align="center">
+  <img src="assets/icon.svg" width="76" alt="ytr-music logo">
+  &nbsp;&nbsp;
+  <a href="https://ialturki.github.io/ytr-music/agent-setup/"><img src="assets/ai-setup.svg" width="330" alt="Set up with your AI agent — open the setup prompt copier"></a>
+</p>
+<p align="center"><sub>Click the setup button, copy the prompt, and give it to your AI agent. <a href="docs/agent-setup/prompt.txt">Read the prompt</a>.</sub></p>
+<!-- /AI setup by iAlturki -->
 
 # ytr-music
 
@@ -10,7 +17,7 @@
 [![Build](https://img.shields.io/github/actions/workflow/status/iAlturki/ytr-music/build.yml?branch=main&style=flat-square&label=build)](https://github.com/iAlturki/ytr-music/actions/workflows/build.yml)
 ![Windows](https://img.shields.io/badge/Windows-10%20%7C%2011-4f7bd6?style=flat-square)
 ![Size](https://img.shields.io/badge/exe-690%20KB-4f7bd6?style=flat-square)
-[![License](https://img.shields.io/badge/license-MIT-59636e?style=flat-square)](license)
+[![License](https://img.shields.io/badge/license-CC%20BY--NC--SA%204.0-59636e?style=flat-square)](license)
 
 <br>
 
@@ -93,8 +100,11 @@ native\build.bat debug      # symbols; run with --debug for DevTools + log
 
 <p align="center">
 <sub>
-<a href="CHANGELOG.md">Changelog</a> · <a href="SECURITY.md">Security</a> · <a href="license">MIT License</a>
+<a href="CHANGELOG.md">Changelog</a> · <a href="SECURITY.md">Security</a> · <a href="license">CC BY-NC-SA 4.0</a>
 <br>
-Made by <a href="https://github.com/iAlturki"><b>iALTURKi</b></a>
+Made by <a href="https://github.com/iAlturki"><b>iAlturki</b></a>
 </sub>
 </p>
+
+
+Current original material is **CC BY-NC-SA 4.0 © iAlturki**. Earlier MIT releases retain their original terms; third-party material retains its own notices. See [NOTICE](NOTICE) and [LICENSES/previous-MIT.txt](LICENSES/previous-MIT.txt).

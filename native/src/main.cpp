@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: CC-BY-NC-SA-4.0
+// Copyright (c) 2026 iAlturki
 #include "app.h"
 #include "main_window.h"
 #include "miniplayer.h"

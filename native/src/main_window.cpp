@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: CC-BY-NC-SA-4.0
+// Copyright (c) 2026 iAlturki
 #include "main_window.h"
 #include "webview_engine.h"
 #include "taskbar_controls.h"

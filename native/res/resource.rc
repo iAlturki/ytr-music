@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: CC-BY-NC-SA-4.0
+// Copyright (c) 2026 iAlturki
 #include <windows.h>
 #include "resource.h"
 #include "version.h"
@@ -19,11 +21,11 @@ BEGIN
     BEGIN
         BLOCK "040904b0"
         BEGIN
-            VALUE "CompanyName", "iALTURKi"
-            VALUE "FileDescription", "ytr-music (iALTURKi Edition)"
+            VALUE "CompanyName", "iAlturki"
+            VALUE "FileDescription", "ytr-music (iAlturki Edition)"
             VALUE "FileVersion", YTR_VERSION_STRING
             VALUE "InternalName", "ytr-music"
-            VALUE "LegalCopyright", "Copyright (C) 2026 iALTURKi. MIT License."
+            VALUE "LegalCopyright", "Copyright (C) 2026 iAlturki. CC BY-NC-SA 4.0."
             VALUE "OriginalFilename", "ytr-music.exe"
             VALUE "ProductName", "ytr-music"
             VALUE "ProductVersion", YTR_VERSION_STRING

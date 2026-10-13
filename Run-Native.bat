@@ -1,9 +1,11 @@
+@rem SPDX-License-Identifier: CC-BY-NC-SA-4.0
+@rem Copyright (c) 2026 iAlturki
 @echo off
 setlocal
-title ytr-music (iALTURKi Native C++ Edition)
+title ytr-music (iAlturki Native C++ Edition)
 
 echo ========================================================
-echo   ytr-music Native (iALTURKi Reconstructed Edition)
+echo   ytr-music Native (iAlturki Reconstructed Edition)
 echo   Pure C++ Win32 ^| Ultra-Lightweight ^| Sub-1MB Footprint
 echo ========================================================
 echo.
