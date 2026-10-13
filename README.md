@@ -2,7 +2,7 @@
 
 <!-- AI setup by iAlturki -->
 <p align="center">
-  <img src="assets/icon.svg" width="76" alt="ytr-music logo">
+  <img src="assets/logo.png" width="76" alt="ytr-music logo">
   &nbsp;&nbsp;
   <a href="https://ialturki.github.io/ytr-music/agent-setup/"><img src="assets/ai-setup.svg" width="330" alt="Set up with your AI agent — open the setup prompt copier"></a>
 </p>
